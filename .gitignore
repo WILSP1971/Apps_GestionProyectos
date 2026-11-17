@@ -1,0 +1,38 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# Entornos y secretos
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Service worker generado
+apps/web/public/sw.js
+apps/web/public/swe-worker-*.js
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+*.log

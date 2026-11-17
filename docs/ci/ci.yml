@@ -1,0 +1,50 @@
+name: CI SierraFlow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: prueba
+          POSTGRES_DB: sierraflow
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL_OWNER: postgres://postgres:prueba@localhost:5432/sierraflow
+      NEXT_PUBLIC_MODO_DEMO: "true"
+      AUTH_SECRET: ci-secreto-de-prueba
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Migraciones de base de datos
+        run: bash database/migrar.sh
+
+      - name: Roles de base de datos
+        run: psql "$DATABASE_URL_OWNER" -v clave_app=x -v clave_analitica=y -f database/seguridad/roles_seguridad.sql
+
+      - name: Dependencias Node
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Pruebas y build
+        run: pnpm turbo test build
+
+      - name: Pruebas Python
+        working-directory: services/analitica
+        run: |
+          pip install -r requirements.txt
+          pytest -q

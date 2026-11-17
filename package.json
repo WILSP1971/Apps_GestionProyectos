@@ -1,0 +1,23 @@
+{
+  "name": "sierraflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SierraFlow - Gestión y Dirección de Proyectos (Clean Architecture + DDD + Offline-First)",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:web": "turbo dev --filter=@sierraflow/web",
+    "dev:api": "turbo dev --filter=@sierraflow/api",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:migrar": "bash database/migrar.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3"
+  }
+}

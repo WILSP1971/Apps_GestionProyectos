@@ -1,0 +1,14 @@
+{
+  "name": "SierraFlow · Gestión de Proyectos",
+  "short_name": "SierraFlow",
+  "description": "Solicitudes de requerimiento, seguimiento y dirección de proyectos.",
+  "lang": "es-CO",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08161d",
+  "theme_color": "#08161d",
+  "icons": [
+    { "src": "/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

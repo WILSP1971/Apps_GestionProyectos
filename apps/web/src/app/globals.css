@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* Paleta SierraFlow — basada en los mockups REQFlow (azul petróleo + teal) */
+@theme {
+  --font-sans: var(--fuente-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-fondo: #08161d;
+  --color-panel: #0d2029;
+  --color-panel-2: #112a35;
+  --color-borde: #1d3a47;
+  --color-borde-fuerte: #2a5161;
+  --color-texto: #e2ecf0;
+  --color-atenuado: #8ba5b1;
+  --color-primario: #14b8a6;
+  --color-primario-hover: #0d9488;
+  --color-acento: #3b82f6;
+  --color-exito: #22c55e;
+  --color-alerta: #f59e0b;
+  --color-peligro: #ef4444;
+}
+
+@layer base {
+  html { color-scheme: dark; }
+  body {
+    @apply bg-fondo text-texto antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 100% -10%, rgb(20 184 166 / 0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgb(59 130 246 / 0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+  ::selection { background: rgb(20 184 166 / 0.35); }
+  input, textarea, select { @apply text-texto; }
+  :focus-visible { outline: 2px solid var(--color-primario); outline-offset: 2px; }
+}
+
+@layer components {
+  .campo {
+    @apply w-full rounded-lg border border-borde bg-fondo/60 px-3 py-2 text-sm placeholder:text-atenuado/70
+           transition focus:border-primario focus:outline-none focus:ring-2 focus:ring-primario/30;
+  }
+  .etiqueta { @apply mb-1.5 block text-xs font-medium text-atenuado; }
+  .error-campo { @apply mt-1 text-xs text-peligro; }
+}
+
+/* Barra de desplazamiento discreta */
+* { scrollbar-width: thin; scrollbar-color: var(--color-borde) transparent; }
