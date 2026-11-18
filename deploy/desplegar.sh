@@ -30,10 +30,11 @@ fi
 ln -sfn "$ENV_FILE" "$APP/.env"   # todas las apps leen el mismo .env
 
 paso "2/7 Dependencias Node (pnpm)"
-if [[ -f "$APP/pnpm-lock.yaml" ]]; then
+# Solo se exige el lockfile exacto si viene del repositorio; uno generado en el servidor se recalcula
+if como_app "git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1"; then
   como_app "pnpm install --frozen-lockfile"
 else
-  aviso "No hay pnpm-lock.yaml en el repositorio: se instalan las versiones más recientes compatibles."
+  aviso "pnpm-lock.yaml no está en el repositorio: se instalan las versiones más recientes compatibles."
   aviso "Recomendado: haga commit de pnpm-lock.yaml desde su PC para builds reproducibles."
   como_app "pnpm install --no-frozen-lockfile"
 fi
