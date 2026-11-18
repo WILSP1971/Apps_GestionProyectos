@@ -28,6 +28,17 @@ echo "  Código: $APP   ·   Usuario: $USUARIO   ·   Configuración: $ENV_FILE"
 
 echo -e "${C_AZUL}SierraFlow · instalación en $(hostname) para https://${DOMINIO}${C_FIN}"
 
+# Los puertos internos no deben estar ocupados por otras apps del servidor (solo en la primera instalación)
+if [[ ! -f "$ENV_FILE" ]]; then
+  for p in "$PUERTO_WEB" "$PUERTO_API" "$PUERTO_PY"; do
+    if ss -Hltn "sport = :$p" | grep -q .; then
+      error "El puerto $p ya lo usa otra aplicación ($(ss -Hltnp "sport = :$p" | grep -o 'users:(("[^"]*' | cut -d'"' -f2 | head -1)).
+  Elija otros puertos, por ejemplo:
+    sudo PUERTO_WEB=3110 PUERTO_API=4110 PUERTO_PY=8110 bash $0"
+    fi
+  done
+fi
+
 # ---------------------------------------------------------------------
 paso "1/11 Paquetes del sistema"
 export DEBIAN_FRONTEND=noninteractive
