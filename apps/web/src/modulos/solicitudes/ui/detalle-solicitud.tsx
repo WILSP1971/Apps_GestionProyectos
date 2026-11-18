@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, CalendarDays, Check, CheckCircle2, CloudUpload, FileQuestion, MessageSquare, Send, UsersRound, X,
+  AlertTriangle, ArrowLeft, CalendarDays, Check, CheckCircle2, CloudUpload, FileQuestion, MessageSquare, RotateCcw, Send, UsersRound, X,
 } from 'lucide-react';
-import { ETIQUETA_ESTADO, ETIQUETA_TIPO, transicionesDisponibles, type ReglaTransicion } from '@sierraflow/contratos';
-import { dbLocal } from '@/lib/offline/db';
+import { ETIQUETA_ESTADO, ETIQUETA_TIPO, transicionesDisponibles, type EstadoSolicitud, type ReglaTransicion } from '@sierraflow/contratos';
+import { dbLocal, type ConflictoLocal } from '@/lib/offline/db';
 import { cn, fecha, fechaHora, haceTiempo } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton, Tarjeta, Vacio } from '@/componentes/ui/primitivos';
 import { useActor } from '@/componentes/layout/proveedores';
@@ -32,7 +33,73 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactN
   );
 }
 
-export function DetalleSolicitud({ id }: { id: string }) {
+const DESCRIPCION_OPERACION: Record<ConflictoLocal['tipo'], (p: Record<string, unknown>) => string> = {
+  crear: () => 'Crear la solicitud',
+  cambiar_estado: (p) => `Cambiar el estado a "${ETIQUETA_ESTADO[p.hacia as EstadoSolicitud] ?? p.hacia}"`,
+  marcar_criterio: (p) => (p.cumplido ? 'Marcar un criterio como cumplido' : 'Desmarcar un criterio'),
+  comentar: (p) => `Comentario: "${String(p.contenido ?? '').slice(0, 60)}"`,
+};
+
+/** Cambios locales que el servidor no aplicó (conflicto de versión o regla de negocio). */
+function AvisosSincronizacion({ id, errorSync }: { id: string; errorSync?: string }) {
+  const actor = useActor();
+  const router = useRouter();
+  const conflictos = useLiveQuery(() => dbLocal.conflictos.where('entidadId').equals(id).toArray(), [id]) ?? [];
+  if (!conflictos.length && !errorSync) return null;
+
+  const reintentar = async (c: ConflictoLocal) => {
+    const p = c.payload as { hacia: EstadoSolicitud; comentario?: string };
+    try {
+      await cambiarEstado(id, p.hacia, actor, p.comentario);
+      await dbLocal.conflictos.delete(c.idOperacion);
+      toast.success('Cambio reenviado');
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const descartarSolicitudLocal = async () => {
+    await dbLocal.transaction('rw', dbLocal.solicitudes, dbLocal.comentarios, dbLocal.conflictos, async () => {
+      await dbLocal.solicitudes.delete(id);
+      await dbLocal.comentarios.where('solicitudId').equals(id).delete();
+      await dbLocal.conflictos.where('entidadId').equals(id).delete();
+    });
+    router.push('/mis-solicitudes');
+  };
+
+  return (
+    <section className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 p-4" aria-live="polite">
+      <p className="flex items-center gap-2 text-sm font-medium text-red-200"><AlertTriangle className="size-4" /> Cambios que no se pudieron sincronizar</p>
+      {errorSync && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-fondo/50 px-3 py-2 text-sm">
+          <span>El servidor rechazó esta solicitud: <span className="text-red-200">{errorSync}</span></span>
+          <Boton tamano="sm" variante="peligro" onClick={descartarSolicitudLocal}>Eliminar copia local</Boton>
+        </div>
+      )}
+      {conflictos.map((c) => (
+        <div key={c.idOperacion} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-fondo/50 px-3 py-2 text-sm">
+          <span>
+            {DESCRIPCION_OPERACION[c.tipo]((c.payload ?? {}) as Record<string, unknown>)}
+            {' — '}
+            <span className="text-red-200">{c.motivo === 'conflicto' ? 'otra persona modificó la solicitud antes' : c.mensaje}</span>
+          </span>
+          <span className="flex gap-2">
+            {c.motivo === 'conflicto' && c.tipo === 'cambiar_estado' && (
+              <Boton tamano="sm" variante="secundario" onClick={() => reintentar(c)}><RotateCcw className="size-3.5" /> Reintentar</Boton>
+            )}
+            <Boton tamano="sm" variante="fantasma" onClick={() => dbLocal.conflictos.delete(c.idOperacion)}>Descartar</Boton>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+export function DetalleSolicitud() {
+  // El id se toma de la URL real (no de los parámetros del servidor): así la misma página en caché
+  // del Service Worker sirve para abrir cualquier solicitud sin conexión.
+  const ruta = usePathname();
+  const id = decodeURIComponent(ruta.split('/').filter(Boolean).pop() ?? '');
   const actor = useActor();
   // undefined = cargando · null = no existe en este equipo
   const solicitud = useLiveQuery(() => dbLocal.solicitudes.get(id).then((x) => x ?? null), [id]);
@@ -101,6 +168,8 @@ export function DetalleSolicitud({ id }: { id: string }) {
           </div>
         )}
       </section>
+
+      <AvisosSincronizacion id={s.id} errorSync={s.errorSync} />
 
       {/* 2 · Línea de vida */}
       <LineaDeVida estado={s.estado} />

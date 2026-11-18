@@ -22,7 +22,18 @@ export async function enTransaccion<T>(
   opciones: { comentarioEstado?: string } = {},
 ): Promise<T> {
   const enCurso = contexto.getStore();
-  if (enCurso) return fn(); // transacción anidada: reutiliza la actual
+  if (enCurso) {
+    // Transacción anidada (p. ej. un caso de uso llamado desde la sincronización):
+    // reutiliza la actual y solo actualiza las variables de sesión que se indiquen.
+    if (usuarioId || opciones.comentarioEstado !== undefined) {
+      await enCurso.query(
+        `SELECT set_config('app.usuario_id', coalesce(nullif($1, ''), current_setting('app.usuario_id', true)), true),
+                set_config('app.comentario_estado', $2, true)`,
+        [usuarioId ?? '', opciones.comentarioEstado ?? ''],
+      );
+    }
+    return fn();
+  }
 
   const cliente = await pool.connect();
   try {

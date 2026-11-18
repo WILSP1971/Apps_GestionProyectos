@@ -8,7 +8,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "node --import tsx --test test/solicitud.agregado.spec.ts"
+    "test": "node --import tsx --test test/solicitud.agregado.spec.ts test/versiones-lote.spec.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.0",

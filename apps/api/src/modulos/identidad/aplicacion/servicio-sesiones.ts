@@ -8,6 +8,11 @@ import { ProveedorOidc, VerificadorOidc } from '../infraestructura/verificador-o
 
 const DURACION_ACCESS_SEG = 15 * 60;
 const DURACION_REFRESH_DIAS = 30;
+/**
+ * Periodo de gracia: si dos procesos (middleware, página, otra pestaña) renuevan casi al mismo
+ * tiempo con el mismo refresh token, el segundo no se trata como robo.
+ */
+const GRACIA_REUSO_MS = 2 * 60 * 1000;
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
 
 export interface TokensSesion {
@@ -43,8 +48,10 @@ export class ServicioSesiones {
       const { rows: [s] } = await db().query(
         `SELECT * FROM gestion.sesiones_refresh WHERE token_hash = $1 FOR UPDATE`, [hash(refreshToken)]);
       if (!s || new Date(s.expira_en) < new Date()) throw new UnauthorizedException('Sesión expirada');
-      if (s.revocado_en) {
-        // Token ya usado ⇒ posible robo: se revoca toda la familia de sesiones
+      const enGracia = s.revocado_en && s.reemplazado_por
+        && Date.now() - new Date(s.revocado_en).getTime() < GRACIA_REUSO_MS;
+      if (s.revocado_en && !enGracia) {
+        // Token reutilizado fuera del periodo de gracia ⇒ posible robo: se revoca toda la familia
         await db().query(
           `UPDATE gestion.sesiones_refresh SET revocado_en = now() WHERE familia_id = $1 AND revocado_en IS NULL`,
           [s.familia_id]);
@@ -55,7 +62,7 @@ export class ServicioSesiones {
       const nuevo = await this.crearRefresh(usuario.id, s.familia_id, { ua: s.user_agent, ip: s.ip });
       await db().query(
         `UPDATE gestion.sesiones_refresh
-            SET revocado_en = now(),
+            SET revocado_en = coalesce(revocado_en, now()),
                 reemplazado_por = (SELECT id FROM gestion.sesiones_refresh WHERE token_hash = $2)
           WHERE id = $1`,
         [s.id, hash(nuevo)]);

@@ -113,7 +113,8 @@ export async function sembrarDemoSiVacio(usuarioId: string, usuarioNombre: strin
 }
 
 export async function reiniciarDemo(usuarioId: string, usuarioNombre: string) {
-  await Promise.all([dbLocal.solicitudes.clear(), dbLocal.comentarios.clear(), dbLocal.notificaciones.clear(), dbLocal.bandejaSalida.clear()]);
+  await Promise.all([dbLocal.solicitudes.clear(), dbLocal.comentarios.clear(), dbLocal.notificaciones.clear(),
+    dbLocal.bandejaSalida.clear(), dbLocal.conflictos.clear()]);
   await dbLocal.meta.delete('demo-sembrado');
   await sembrarDemoSiVacio(usuarioId, usuarioNombre);
 }

@@ -18,6 +18,7 @@ export interface PerfilApi {
 declare module 'next-auth' {
   interface Session {
     accessToken?: string;
+    expiraEn?: number;
     usuario?: PerfilApi;
     error?: string;
   }
@@ -77,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       const t = token as typeof token & TokenSesion;
-      return { ...session, accessToken: t.accessToken, usuario: t.usuario, error: t.error } as DefaultSession & typeof session;
+      return { ...session, accessToken: t.accessToken, expiraEn: t.expiraEn, usuario: t.usuario, error: t.error } as DefaultSession & typeof session;
     },
   },
 });

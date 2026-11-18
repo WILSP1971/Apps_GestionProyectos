@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { esquemaCambioEstado, esquemaNuevaSolicitud } from '@sierraflow/contratos';
+import { esquemaCambioEstado, esquemaComentario, esquemaNuevaSolicitud } from '@sierraflow/contratos';
+import { z } from 'zod';
 import type { CambioEstado, NuevaSolicitud } from '@sierraflow/contratos';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { Roles, Usuario } from '../../../compartido/presentacion/decoradores';
@@ -8,7 +9,11 @@ import { JwtGuard } from '../../identidad/presentacion/jwt.guard';
 import { RolesGuard } from '../../identidad/presentacion/roles.guard';
 import { CambiarEstadoSolicitudCasoUso } from '../aplicacion/cambiar-estado.caso-uso';
 import { ConsultasSolicitudes } from '../aplicacion/consultas-solicitudes';
+import { ComentarCasoUso } from '../aplicacion/comentar.caso-uso';
 import { CrearSolicitudCasoUso } from '../aplicacion/crear-solicitud.caso-uso';
+import { MarcarCriterioCasoUso } from '../aplicacion/marcar-criterio.caso-uso';
+
+const esquemaCriterioCumplido = z.object({ cumplido: z.boolean(), version: z.number().int().min(1) });
 
 @Controller('solicitudes')
 @UseGuards(JwtGuard, RolesGuard)
@@ -17,6 +22,8 @@ export class SolicitudesController {
     private readonly crear: CrearSolicitudCasoUso,
     private readonly cambiarEstado: CambiarEstadoSolicitudCasoUso,
     private readonly consultas: ConsultasSolicitudes,
+    private readonly marcarCriterio: MarcarCriterioCasoUso,
+    private readonly comentar: ComentarCasoUso,
   ) {}
 
   @Post()
@@ -53,5 +60,24 @@ export class SolicitudesController {
     @Usuario() u: UsuarioActual,
   ) {
     return this.cambiarEstado.ejecutar(id, cambio, u);
+  }
+
+  @Patch(':id/criterios/:criterioId')
+  criterio(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('criterioId', ParseUUIDPipe) criterioId: string,
+    @Body(new ZodPipe(esquemaCriterioCumplido)) b: z.infer<typeof esquemaCriterioCumplido>,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.marcarCriterio.ejecutar(id, { criterioId, cumplido: b.cumplido, version: b.version }, u);
+  }
+
+  @Post(':id/comentarios')
+  comentario(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(esquemaComentario)) b: z.infer<typeof esquemaComentario>,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.comentar.ejecutar(id, b, u);
   }
 }

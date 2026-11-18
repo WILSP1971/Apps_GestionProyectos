@@ -81,6 +81,10 @@ Endpoints iniciales:
 | GET | `/api/solicitudes/similares?texto=` | Detección de duplicados (pg_trgm) |
 | GET | `/api/solicitudes/:id` | Detalle con criterios, historial y comentarios |
 | PATCH | `/api/solicitudes/:id/estado` | Transición de estado con concurrencia optimista |
+| PATCH | `/api/solicitudes/:id/criterios/:criterioId` | Marcar / desmarcar un criterio de aceptación |
+| POST | `/api/solicitudes/:id/comentarios` | Comentar en el hilo de la solicitud |
+| POST | `/api/sync/push` | Aplica en orden la bandeja de salida del dispositivo (idempotente) |
+| GET | `/api/sync/pull` | Cambios posteriores a los cursores `solicitudes`, `comentarios`, `notificaciones` |
 
 ## 5. Inicio de sesión real (OAuth 2.0 / OIDC)
 
@@ -100,22 +104,58 @@ pytest -q
 uvicorn app.main:app --reload --port 8000     # http://127.0.0.1:8000/docs
 ```
 
-## 7. Pruebas
+## 7. Probar el funcionamiento sin conexión (Sprint 3)
+
+El Service Worker solo se activa en una compilación de producción:
+
+```bash
+pnpm --filter @sierraflow/contratos build
+pnpm --filter @sierraflow/web preview      # compila y abre http://localhost:3000
+```
+
+1. Inicia sesión y navega por Dashboard y Mis solicitudes (o espera ~3 s: se precargan solas).
+2. En Chrome DevTools → **Network** marca **Offline** (o desconecta el Wi-Fi).
+3. Crea una solicitud, cambia estados y comenta: el indicador muestra **“Sin conexión · N pendientes”**.
+4. Recarga la página: la app sigue abriendo desde la caché, con los datos de IndexedDB.
+5. Vuelve a **Online**: el indicador pasa a **“Sincronizado”** y los cambios aparecen en PostgreSQL.
+
+Cómo funciona:
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Bandeja de salida | `apps/web/src/lib/offline/db.ts` | Cada cambio local se guarda en IndexedDB con un `idOperacion` único |
+| Motor | `apps/web/src/lib/offline/sync/motor-sync.ts` | push en orden + pull por cursores; reintentos con espera exponencial; una sola pestaña sincroniza (Web Locks) |
+| Plan de resultados | `apps/web/src/lib/offline/sync/plan.ts` | Decide qué hacer con cada respuesta (ok, conflicto, rechazada, error) — lógica pura con pruebas |
+| Sincronización (API) | `apps/api/src/modulos/sincronizacion/` | Reutiliza los casos de uso de dominio; idempotencia en `sync_operaciones`; versiones encadenadas |
+| Service Worker | `apps/web/src/app/sw.ts` | Precarga JS/CSS, páginas con red primero, plantilla de detalle y página `/offline` |
+
+Conflictos: si otra persona cambió la solicitud mientras estabas sin conexión, prevalece el servidor
+y el detalle de la solicitud muestra el cambio que no se aplicó, con **Reintentar** o **Descartar**.
+
+## 8. Pruebas
 
 ```bash
 pnpm test                      # dominio (API) + contratos
 cd services/analitica && pytest -q
 ```
 
-## 8. Estado del proyecto (plan por sprints)
+## 9. Estado del proyecto (plan por sprints)
 
 - [x] **Sprint 0** – Monorepo, modelo de datos, migraciones, semillas, roles de BD
 - [x] **Sprint 1** – Identidad OAuth 2.0 (API) + login web + layout y tema
 - [x] **Sprint 2** – Solicitudes: asistente de 4 pasos, Mis solicitudes, detalle con línea de vida, comentarios
-- [ ] **Sprint 3** – Motor de sincronización offline (push/pull) + Service Worker (Serwist)
+- [x] **Sprint 3** – Motor de sincronización offline (push/pull) + Service Worker (Serwist)
 - [ ] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
 - [ ] **Sprint 5** – Asignación por carga de trabajo y Kanban por departamentos
 - [ ] **Sprint 6** – Evaluación/calificación y reportes
 - [ ] **Sprint 7** – PM Suite (Gantt, riesgos, deuda técnica, ROI) y endurecimiento
 
-Despliegue en el VPS Ubuntu (`proyectos.sierrainnova.tech`): ver sección 13 de la guía.
+## 10. Instalación en el VPS (producción)
+
+Guía paso a paso: [`docs/Despliegue_VPS.md`](docs/Despliegue_VPS.md). Resumen:
+
+```bash
+sudo git clone https://<TOKEN>@github.com/WILSP1971/Apps_GestionProyectos.git /opt/sierraflow/app
+sudo bash /opt/sierraflow/app/deploy/instalar-servidor.sh   # primera vez
+sudo bash /opt/sierraflow/app/deploy/desplegar.sh           # cada actualización
+```

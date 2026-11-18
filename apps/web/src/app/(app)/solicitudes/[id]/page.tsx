@@ -3,7 +3,7 @@ import { DetalleSolicitud } from '@/modulos/solicitudes/ui/detalle-solicitud';
 
 export const metadata: Metadata = { title: 'Detalle de solicitud' };
 
-export default async function PaginaDetalle({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return <DetalleSolicitud id={id} />;
+/** El componente lee el id de la URL en el cliente (necesario para abrir solicitudes sin conexión). */
+export default function PaginaDetalle() {
+  return <DetalleSolicitud />;
 }

@@ -35,3 +35,14 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA gestion TO sierraflow_analitica;
 
 ALTER ROLE sierraflow_app       SET search_path = gestion, public;
 ALTER ROLE sierraflow_analitica SET search_path = gestion, public;
+
+-- Privilegios por defecto para tablas/secuencias/funciones que creen migraciones futuras
+-- (evita tener que volver a ejecutar este script después de cada sprint)
+ALTER DEFAULT PRIVILEGES FOR ROLE sierraflow_owner IN SCHEMA gestion
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sierraflow_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE sierraflow_owner IN SCHEMA gestion
+  GRANT USAGE, SELECT ON SEQUENCES TO sierraflow_app, sierraflow_analitica;
+ALTER DEFAULT PRIVILEGES FOR ROLE sierraflow_owner IN SCHEMA gestion
+  GRANT EXECUTE ON FUNCTIONS TO sierraflow_app, sierraflow_analitica;
+ALTER DEFAULT PRIVILEGES FOR ROLE sierraflow_owner IN SCHEMA gestion
+  GRANT SELECT ON TABLES TO sierraflow_analitica;

@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, CloudOff, Loader2, Plus, RefreshCcw, Search, Wifi } from 'lucide-react';
+import { AlertTriangle, Bell, Cloud, CloudOff, HardDrive, Loader2, LogIn, Plus, RefreshCcw, Search } from 'lucide-react';
 import type { Rol } from '@sierraflow/contratos';
-import { dbLocal } from '@/lib/offline/db';
+import { dbLocal, type EstadoSync } from '@/lib/offline/db';
+import { motorSync } from '@/lib/offline/sync/motor-sync';
 import { cn, haceTiempo } from '@/lib/utils';
 import { reiniciarDemo } from '@/modulos/solicitudes/infraestructura/datos-demo';
 import { Avatar, Boton } from '@/componentes/ui/primitivos';
@@ -21,8 +22,12 @@ const VISTAS: { etiqueta: string; roles: Rol[] }[] = [
 ];
 
 function IndicadorConexion() {
+  const { modoDemo } = useUsuario();
   const [enLinea, setEnLinea] = useState(true);
   const pendientes = useLiveQuery(() => dbLocal.bandejaSalida.count(), []) ?? 0;
+  const conflictos = useLiveQuery(() => dbLocal.conflictos.count(), []) ?? 0;
+  const estado = useLiveQuery(() => dbLocal.meta.get('estado-sync').then((m) => m?.valor as EstadoSync | undefined), []);
+
   useEffect(() => {
     const actualizar = () => setEnLinea(navigator.onLine);
     actualizar();
@@ -33,17 +38,56 @@ function IndicadorConexion() {
       window.removeEventListener('offline', actualizar);
     };
   }, []);
+
+  if (modoDemo) {
+    return (
+      <span className="hidden items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs text-amber-300 md:inline-flex"
+        title="En modo demo los datos no se envían a ningún servidor">
+        <HardDrive className="size-3.5" /> Solo local{pendientes ? ` · ${pendientes} cambios` : ''}
+      </span>
+    );
+  }
+
+  const sincronizando = estado?.fase === 'sincronizando';
+  let tono = 'bg-emerald-500/10 text-emerald-300';
+  let icono = <Cloud className="size-3.5" />;
+  let texto = 'Sincronizado';
+  if (!enLinea) {
+    tono = 'bg-amber-500/15 text-amber-300'; icono = <CloudOff className="size-3.5" />;
+    texto = pendientes ? `Sin conexión · ${pendientes} pendientes` : 'Sin conexión';
+  } else if (estado?.fase === 'sesion') {
+    tono = 'bg-red-500/15 text-red-300'; icono = <LogIn className="size-3.5" />; texto = 'Sesión expirada';
+  } else if (estado?.fase === 'error') {
+    tono = 'bg-red-500/15 text-red-300'; icono = <AlertTriangle className="size-3.5" />;
+    texto = pendientes ? `Error · ${pendientes} pendientes` : 'Error al sincronizar';
+  } else if (sincronizando || pendientes) {
+    tono = 'bg-sky-500/10 text-sky-300'; icono = <Loader2 className="size-3.5 animate-spin" />;
+    texto = pendientes ? `${pendientes} por sincronizar` : 'Sincronizando…';
+  }
+
+  const titulo = [
+    estado?.ultimaSync ? `Última sincronización: ${haceTiempo(estado.ultimaSync)}` : 'Aún no se ha sincronizado',
+    estado?.mensaje && estado.fase !== 'ok' ? estado.mensaje : '',
+    'Clic para sincronizar ahora',
+  ].filter(Boolean).join('\n');
+
   return (
-    <span
-      title={pendientes ? `${pendientes} cambios guardados en este equipo, pendientes de sincronizar` : 'Todo sincronizado'}
-      className={cn(
-        'hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs md:inline-flex',
-        enLinea ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/15 text-amber-300',
+    <div className="hidden items-center gap-2 md:flex">
+      <button
+        type="button"
+        title={titulo}
+        onClick={() => (estado?.fase === 'sesion' ? location.assign('/login') : motorSync.sincronizarAhora())}
+        className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition hover:brightness-125', tono)}
+      >
+        {icono}{texto}
+      </button>
+      {conflictos > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-xs text-red-300"
+          title="Cambios que el servidor no aplicó. Revisa el detalle de cada solicitud.">
+          <AlertTriangle className="size-3.5" />{conflictos}
+        </span>
       )}
-    >
-      {enLinea ? (pendientes ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />) : <CloudOff className="size-3.5" />}
-      {enLinea ? (pendientes ? `${pendientes} por sincronizar` : 'En línea') : `Sin conexión · ${pendientes} pendientes`}
-    </span>
+    </div>
   );
 }
 

@@ -1,9 +1,13 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Toaster } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import type { Rol } from '@sierraflow/contratos';
 import type { UsuarioSesion } from '@/lib/sesion';
+import { prepararBaseLocal, type ConflictoLocal } from '@/lib/offline/db';
+import { EVENTO_CONFLICTO, motorSync } from '@/lib/offline/sync/motor-sync';
+import { precalentarPaginas } from '@/lib/offline/precalentar';
+import { configurarCasosUso } from '@/modulos/solicitudes/aplicacion/casos-uso';
 import { sembrarDemoSiVacio } from '@/modulos/solicitudes/infraestructura/datos-demo';
 
 interface ContextoUsuario {
@@ -35,14 +39,44 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
   const [rolesVista, setRolesVista] = useState<Rol[]>(usuario.roles);
 
   useEffect(() => {
-    if (!modoDemo) return;
-    try {
-      const guardado = localStorage.getItem('sierraflow.vista');
-      if (guardado) setRolesVista(JSON.parse(guardado));
-    } catch {
-      /* almacenamiento no disponible */
-    }
-    sembrarDemoSiVacio(usuario.id, usuario.nombre).catch(console.error);
+    configurarCasosUso({ modoDemo });
+    let activo = true;
+
+    (async () => {
+      // La base local pertenece a un usuario y a un modo: si cambian, se vacía
+      await prepararBaseLocal(usuario.id, modoDemo);
+      if (!activo) return;
+      if (modoDemo) {
+        try {
+          const guardado = localStorage.getItem('sierraflow.vista');
+          if (guardado) setRolesVista(JSON.parse(guardado));
+        } catch {
+          /* almacenamiento no disponible */
+        }
+        await sembrarDemoSiVacio(usuario.id, usuario.nombre);
+      } else {
+        motorSync.iniciar();
+      }
+      // Deja en caché las pantallas principales para poder abrirlas sin conexión
+      precalentarPaginas();
+    })().catch(console.error);
+
+    const alConflicto = (e: Event) => {
+      const lista = (e as CustomEvent<ConflictoLocal[]>).detail ?? [];
+      for (const c of lista) {
+        toast.warning(c.motivo === 'conflicto' ? 'Un cambio tuyo no se aplicó' : 'El servidor rechazó un cambio', {
+          description: c.mensaje,
+          action: { label: 'Ver', onClick: () => location.assign(`/solicitudes/${c.entidadId}`) },
+        });
+      }
+    };
+    window.addEventListener(EVENTO_CONFLICTO, alConflicto);
+
+    return () => {
+      activo = false;
+      window.removeEventListener(EVENTO_CONFLICTO, alConflicto);
+      motorSync.detener();
+    };
   }, [modoDemo, usuario.id, usuario.nombre]);
 
   const valor = useMemo<ContextoUsuario>(() => ({

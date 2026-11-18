@@ -7,6 +7,7 @@ import {
   type Rol,
 } from '@sierraflow/contratos';
 import { dbLocal, type SolicitudLocal } from '@/lib/offline/db';
+import { avisarCambioLocal } from '@/lib/offline/sync/motor-sync';
 import { nuevoId } from '@/lib/utils';
 
 /**
@@ -25,10 +26,23 @@ export interface Actor {
 
 export class ErrorNegocio extends Error {}
 
+/**
+ * En modo demo no hay servidor: las notificaciones y el avance se simulan localmente.
+ * Con servidor, las notificaciones llegan por la sincronización y el avance lo calculan las tareas.
+ */
+let modoDemo = true;
+export function configurarCasosUso(opciones: { modoDemo: boolean }) {
+  modoDemo = opciones.modoDemo;
+}
+
 const ahora = () => new Date().toISOString();
+/** Marca de tiempo estrictamente creciente: define el orden de la bandeja de salida. */
+let ultimaMarca = 0;
+const marca = () => (ultimaMarca = Math.max(Date.now(), ultimaMarca + 1));
 const codigoProvisional = (id: string) => `SOL-L${id.replace(/-/g, '').slice(0, 5).toUpperCase()}`;
 
 async function notificar(titulo: string, mensaje: string, enlace: string, severidad: 'INFO' | 'EXITO' | 'ALERTA' = 'INFO') {
+  if (!modoDemo) return;
   await dbLocal.notificaciones.add({ id: nuevoId(), titulo, mensaje, enlace, severidad, leida: 0, creadoEn: ahora() });
 }
 
@@ -69,12 +83,13 @@ export async function crearSolicitud(datos: NuevaSolicitud, actor: Actor): Promi
     await dbLocal.solicitudes.add(solicitud);
     await dbLocal.bandejaSalida.add({
       idOperacion: nuevoId(), entidad: 'solicitud', tipo: 'crear', entidadId: id,
-      payload: { ...v, id }, creadoEn: Date.now(), intentos: 0,
+      payload: { ...v, id }, creadoEn: marca(), intentos: 0,
     });
     if (v.enviar) {
       await notificar('Solicitud enviada', `"${v.titulo}" quedó en cola para revisión.`, `/solicitudes/${id}`, 'EXITO');
     }
   });
+  avisarCambioLocal();
   return id;
 }
 
@@ -101,11 +116,12 @@ export async function cambiarEstado(id: string, hacia: EstadoSolicitud, actor: A
     });
     await dbLocal.bandejaSalida.add({
       idOperacion: nuevoId(), entidad: 'solicitud', tipo: 'cambiar_estado', entidadId: id,
-      payload: { hacia, comentario }, versionBase: s.version, creadoEn: Date.now(), intentos: 0,
+      payload: { hacia, comentario }, versionBase: s.version, creadoEn: marca(), intentos: 0,
     });
     const severidad = hacia === 'RECHAZADA' ? 'ALERTA' : hacia === 'APROBADA' || hacia === 'CERRADA' ? 'EXITO' : 'INFO';
     await notificar(`${s.codigo}: ${ETIQUETA_ESTADO[hacia]}`, `"${s.titulo}" pasó a ${ETIQUETA_ESTADO[hacia].toLowerCase()}.`, `/solicitudes/${id}`, severidad);
   });
+  avisarCambioLocal();
 }
 
 export async function marcarCriterio(id: string, criterioId: string, cumplido: boolean) {
@@ -115,16 +131,18 @@ export async function marcarCriterio(id: string, criterioId: string, cumplido: b
     throw new ErrorNegocio('Los criterios se verifican durante desarrollo o validación');
   }
   const criterios = s.criterios.map((c) => (c.id === criterioId ? { ...c, cumplido } : c));
-  const avance = s.estado === 'EN_VALIDACION' || s.estado === 'EN_DESARROLLO'
+  // Con servidor el avance lo calculan las tareas; en demo se aproxima con los criterios cumplidos
+  const avance = modoDemo
     ? Math.max(s.avancePct, Math.round((criterios.filter((c) => c.cumplido).length / criterios.length) * 100))
     : s.avancePct;
   await dbLocal.transaction('rw', dbLocal.solicitudes, dbLocal.bandejaSalida, async () => {
     await dbLocal.solicitudes.update(id, { criterios, avancePct: avance, actualizadoEn: ahora(), pendienteSync: 1 });
     await dbLocal.bandejaSalida.add({
       idOperacion: nuevoId(), entidad: 'solicitud', tipo: 'marcar_criterio', entidadId: id,
-      payload: { criterioId, cumplido }, versionBase: s.version, creadoEn: Date.now(), intentos: 0,
+      payload: { criterioId, cumplido }, versionBase: s.version, creadoEn: marca(), intentos: 0,
     });
   });
+  avisarCambioLocal();
 }
 
 export async function comentar(solicitudId: string, contenido: string, actor: Actor) {
@@ -135,9 +153,10 @@ export async function comentar(solicitudId: string, contenido: string, actor: Ac
     await dbLocal.comentarios.add({ id, solicitudId, autor: actor.nombre, contenido: texto, creadoEn: ahora(), pendienteSync: 1 });
     await dbLocal.bandejaSalida.add({
       idOperacion: nuevoId(), entidad: 'comentario', tipo: 'comentar', entidadId: solicitudId,
-      payload: { id, contenido: texto }, creadoEn: Date.now(), intentos: 0,
+      payload: { id, contenido: texto }, creadoEn: marca(), intentos: 0,
     });
   });
+  avisarCambioLocal();
 }
 
 /** Detección local de duplicados (funciona sin red): similitud por palabras significativas. */
