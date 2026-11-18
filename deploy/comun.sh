@@ -2,9 +2,15 @@
 # =====================================================================
 # SierraFlow · funciones y valores comunes de los scripts de despliegue
 # =====================================================================
-USUARIO="${USUARIO:-sierraflow}"
+# Usuario de Linux que ejecuta la app y carpeta del código (se pueden cambiar al invocar el script):
+#   sudo USUARIO=swarm APP=/home/swarm/proyectos/Apps_GestionProyectos bash deploy/instalar-servidor.sh
+# Si no se indican, se deducen de la carpeta donde está este script y de su dueño.
+_RAIZ_SCRIPT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+APP="${APP:-$_RAIZ_SCRIPT}"
+USUARIO="${USUARIO:-$(stat -c %U "$APP")}"
+[[ "$USUARIO" == "root" ]] && USUARIO="sierraflow"
+# Configuración y secretos fuera del repositorio
 BASE="${BASE:-/opt/sierraflow}"
-APP="$BASE/app"
 ENV_FILE="$BASE/.env"
 BD="${BD:-sierraflow}"
 

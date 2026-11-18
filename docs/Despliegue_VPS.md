@@ -88,10 +88,23 @@ sudo mkdir -p /opt/sierraflow
 sudo git clone https://github.com/WILSP1971/Apps_GestionProyectos.git /opt/sierraflow/app
 ```
 
+**Si tu servidor organiza las apps en la carpeta de un usuario** (por ejemplo `/home/swarm/proyectos`),
+clona ahí, sin `sudo`, con ese usuario:
+
+```bash
+cd ~/proyectos
+git clone https://github.com/WILSP1971/Apps_GestionProyectos.git
+```
+
+El instalador detecta solo la carpeta y su dueño (`swarm`) y ejecuta la app con ese usuario.
+La configuración y las claves quedan igual fuera del repositorio, en `/opt/sierraflow/.env`.
+
 ## Paso 4 · Ejecutar el instalador
 
 ```bash
 sudo bash /opt/sierraflow/app/deploy/instalar-servidor.sh
+# o, si clonaste en tu carpeta de proyectos:
+sudo bash ~/proyectos/Apps_GestionProyectos/deploy/instalar-servidor.sh
 ```
 
 Para usar otro subdominio o correo:

@@ -24,6 +24,7 @@ PUERTO_API="${PUERTO_API:-4010}"
 PUERTO_PY="${PUERTO_PY:-8010}"
 
 [[ -f "$APP/package.json" ]] || error "No encuentro el código en $APP. Clone primero el repositorio (docs/Despliegue_VPS.md, paso 3)."
+echo "  Código: $APP   ·   Usuario: $USUARIO   ·   Configuración: $ENV_FILE"
 
 echo -e "${C_AZUL}SierraFlow · instalación en $(hostname) para https://${DOMINIO}${C_FIN}"
 
