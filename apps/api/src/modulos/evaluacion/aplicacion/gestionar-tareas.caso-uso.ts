@@ -7,6 +7,10 @@ import { publicarEnOutbox } from '../../../compartido/infraestructura/outbox';
 import { REPOSITORIO_SOLICITUDES, RepositorioSolicitudes } from '../../solicitudes/dominio/solicitud.repositorio';
 import { ConsultasEvaluacion, esGestor } from '../infraestructura/consultas-evaluacion';
 
+function validarFechas(inicio: string | null | undefined, fin: string | null | undefined) {
+  if (inicio && fin && fin < inicio) throw new ErrorDominio('FECHAS_INVALIDAS', 'La entrega no puede ser anterior al inicio de la tarea');
+}
+
 /** Campos que un ingeniero puede cambiar en SUS tareas (el resto lo define el líder). */
 const CAMPOS_INGENIERO = new Set(['version', 'estado', 'avancePct', 'horasReales']);
 
@@ -26,11 +30,12 @@ export class GestionarTareasCasoUso {
     return enTransaccion(u.id, async () => {
       await this.validarSolicitud(solicitudId);
       await this.validarResponsable(solicitudId, dto.responsableId);
+      validarFechas(dto.fechaInicio, dto.fechaFinPlan);
       const { rows: [r] } = await db().query(
-        `INSERT INTO gestion.tareas(solicitud_id, titulo, descripcion, grupo_id, responsable_id, peso, horas_estimadas, fecha_fin_plan)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        `INSERT INTO gestion.tareas(solicitud_id, titulo, descripcion, grupo_id, responsable_id, peso, horas_estimadas, fecha_inicio, fecha_fin_plan)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [solicitudId, dto.titulo, dto.descripcion ?? null, dto.grupoId ?? null, dto.responsableId ?? null,
-          dto.peso ?? 1, dto.horasEstimadas ?? null, dto.fechaFinPlan ?? null]);
+          dto.peso ?? 1, dto.horasEstimadas ?? null, dto.fechaInicio ?? null, dto.fechaFinPlan ?? null]);
       if (dto.responsableId && dto.responsableId !== u.id) await this.avisarResponsable(solicitudId, dto.responsableId, dto.titulo, u);
       return (await this.consultas.tarea(r.id))!;
     });
@@ -48,13 +53,15 @@ export class GestionarTareasCasoUso {
         if (otros.length) throw new SinPermiso('Solo puedes cambiar el estado, el avance y las horas reales de tu tarea');
       }
       const estadoSolicitud = await this.validarSolicitud(actual.solicitudId);
+      validarFechas(dto.fechaInicio === undefined ? actual.fechaInicio : dto.fechaInicio,
+        dto.fechaFinPlan === undefined ? actual.fechaFinPlan : dto.fechaFinPlan);
       if (dto.responsableId !== undefined && dto.responsableId !== actual.responsableId) {
         await this.validarResponsable(actual.solicitudId, dto.responsableId);
       }
 
       const columnas: Record<string, unknown> = {
         titulo: dto.titulo, descripcion: dto.descripcion, grupo_id: dto.grupoId, responsable_id: dto.responsableId,
-        peso: dto.peso, horas_estimadas: dto.horasEstimadas, fecha_fin_plan: dto.fechaFinPlan,
+        peso: dto.peso, horas_estimadas: dto.horasEstimadas, fecha_inicio: dto.fechaInicio, fecha_fin_plan: dto.fechaFinPlan,
         estado: dto.estado, avance_pct: dto.avancePct, horas_reales: dto.horasReales,
       };
       const cambios = Object.entries(columnas).filter(([, v]) => v !== undefined);

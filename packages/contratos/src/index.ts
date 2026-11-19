@@ -5,3 +5,5 @@ export * from './notificaciones';
 export * from './asignacion';
 export * from './calificacion';
 export * from './evaluacion';
+export * from './pm';
+export * from './proyectos';

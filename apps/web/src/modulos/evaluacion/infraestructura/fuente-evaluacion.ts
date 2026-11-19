@@ -83,7 +83,7 @@ function tareasIniciales(s: SolicitudLocal): TareaVista[] {
       responsableId: resp?.usuarioId ?? null, responsable: resp?.nombre ?? null,
       estado: avance >= 100 ? 'COMPLETADA' : avance > 0 ? 'EN_PROGRESO' : 'PENDIENTE',
       peso: b.peso, avancePct: avance, horasEstimadas: b.peso * 8, horasReales: Math.round((b.peso * 8 * avance) / 100),
-      fechaFinPlan: null, version: 1,
+      fechaInicio: null, fechaFinPlan: null, version: 1,
     };
   });
 }
@@ -174,7 +174,7 @@ export const fuenteDemo: FuenteEvaluacion = {
       grupoId: datos.grupoId ?? null, grupo: GRUPOS_DEMO.find((g) => g.id === datos.grupoId)?.nombre ?? null,
       responsableId: datos.responsableId ?? null, responsable: equipo.find((e) => e.usuarioId === datos.responsableId)?.nombre ?? null,
       estado: 'PENDIENTE', peso: datos.peso ?? 1, avancePct: 0, horasEstimadas: datos.horasEstimadas ?? null, horasReales: 0,
-      fechaFinPlan: datos.fechaFinPlan ?? null, version: 1,
+      fechaInicio: datos.fechaInicio ?? null, fechaFinPlan: datos.fechaFinPlan ?? null, version: 1,
     });
     d.tareas.push(t);
     await guardarTareas(s, d);

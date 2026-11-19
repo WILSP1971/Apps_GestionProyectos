@@ -26,7 +26,7 @@ const SECCIONES: { titulo?: string; items: Item[] }[] = [
       { href: '/gestion/asignacion', etiqueta: 'Asignación', icono: UsersRound, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/gestion/kanban', etiqueta: 'Kanban', icono: Workflow, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/gestion/evaluacion', etiqueta: 'Evaluación', icono: ClipboardCheck, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/proyectos', etiqueta: 'Proyectos', icono: FolderKanban, roles: ['DIRECTOR', 'ADMIN'] },
+      { href: '/proyectos', etiqueta: 'Proyectos', icono: FolderKanban, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/reportes', etiqueta: 'Reportes', icono: BarChart3, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
     ],
   },

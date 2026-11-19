@@ -33,6 +33,7 @@ export const esquemaNuevaTarea = z.object({
   responsableId: z.string().uuid().nullable().optional(),
   peso: z.number().int().min(1).max(10).default(1),
   horasEstimadas: z.number().min(0).max(2000).nullable().optional(),
+  fechaInicio: fecha.nullable().optional(),
   fechaFinPlan: fecha.nullable().optional(),
 });
 export type NuevaTarea = z.infer<typeof esquemaNuevaTarea>;
@@ -71,6 +72,7 @@ export interface TareaVista {
   avancePct: number;
   horasEstimadas: number | null;
   horasReales: number;
+  fechaInicio: string | null;
   fechaFinPlan: string | null;
   version: number;
 }

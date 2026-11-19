@@ -201,6 +201,7 @@ function FilaTarea({ tarea: t, ctx, fuente, alCambiar, puedeEditar }: {
           <p className="text-xs text-atenuado">
             {t.grupo ?? 'Sin frente'} · {t.responsable ?? 'Sin responsable'} · peso {t.peso}
             {t.horasEstimadas != null && ` · ${t.horasEstimadas} h estimadas`}
+            {t.fechaInicio && ` · inicia ${new Date(`${t.fechaInicio}T12:00:00`).toLocaleDateString('es-CO')}`}
             {t.fechaFinPlan && ` · entrega ${new Date(`${t.fechaFinPlan}T12:00:00`).toLocaleDateString('es-CO')}`}
           </p>
         </div>
@@ -243,6 +244,7 @@ function NuevaTareaForm({ ctx, fuente, alTerminar }: { ctx: ContextoEvaluacion; 
   const [responsableId, setResponsableId] = useState('');
   const [peso, setPeso] = useState('1');
   const [horas, setHoras] = useState('');
+  const [inicio, setInicio] = useState('');
   const [fecha, setFecha] = useState('');
   const [guardando, setGuardando] = useState(false);
 
@@ -252,7 +254,7 @@ function NuevaTareaForm({ ctx, fuente, alTerminar }: { ctx: ContextoEvaluacion; 
     try {
       await fuente.crearTarea(ctx.solicitud.id, {
         titulo: titulo.trim(), grupoId: grupoId || null, responsableId: responsableId || null,
-        peso: Number(peso) || 1, horasEstimadas: horas ? Number(horas) : null, fechaFinPlan: fecha || null,
+        peso: Number(peso) || 1, horasEstimadas: horas ? Number(horas) : null, fechaInicio: inicio || null, fechaFinPlan: fecha || null,
       });
       toast.success('Tarea creada');
       await alTerminar(true);
@@ -280,16 +282,19 @@ function NuevaTareaForm({ ctx, fuente, alTerminar }: { ctx: ContextoEvaluacion; 
       <label className="flex items-center gap-2 text-xs text-atenuado sm:col-span-2">Horas est.
         <input type="number" min={0} step={0.5} value={horas} onChange={(e) => setHoras(e.target.value)} className="campo" />
       </label>
-      <label className="flex items-center gap-2 text-xs text-atenuado sm:col-span-2">Entrega
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="campo" />
+      <label className="flex items-center gap-2 text-xs text-atenuado sm:col-span-2">Inicio
+        <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="campo" />
       </label>
-      <div className="flex justify-end gap-2 sm:col-span-2">
+      <label className="flex items-center gap-2 text-xs text-atenuado sm:col-span-2">Entrega
+        <input type="date" value={fecha} min={inicio || undefined} onChange={(e) => setFecha(e.target.value)} className="campo" />
+      </label>
+      <div className="flex justify-end gap-2 sm:col-span-6">
         <Boton type="button" variante="fantasma" tamano="sm" onClick={() => void alTerminar(false)}>Cancelar</Boton>
         <Boton type="submit" tamano="sm" disabled={guardando || titulo.trim().length < 3}>
           {guardando && <Loader2 className="size-4 animate-spin" />}Crear
         </Boton>
       </div>
-      <p className="text-[11px] text-atenuado sm:col-span-6">El peso define cuánto aporta la tarea al avance general (1 = poco, 10 = mucho).</p>
+      <p className="text-[11px] text-atenuado sm:col-span-6">El peso define cuánto aporta la tarea al avance general (1 = poco, 10 = mucho). Inicio y entrega ubican la tarea en el Gantt del proyecto.</p>
     </form>
   );
 }

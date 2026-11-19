@@ -185,6 +185,28 @@ Endpoints nuevos: `GET /api/evaluacion/solicitudes`, `GET /api/evaluacion/solici
 compilación falla, sigue atendiendo la versión anterior completa. Para volver a la anterior:
 `ln -sfn .releases/web/<versión> .releases/web/actual && pm2 reload sierraflow-web`.
 
+### PM Suite (Sprint 7)
+
+| Pantalla | Ruta | Quién |
+|---|---|---|
+| Portafolio de proyectos | `/proyectos` | DIRECTOR crea y edita · LIDER consulta |
+| Proyecto | `/proyectos/:id` | Resumen y finanzas, Cronograma (Gantt), Riesgos, Deuda técnica, Solicitudes |
+
+- **Proyecto** = agrupa solicitudes. Su avance es el promedio del avance de sus solicitudes.
+- **Salud del cronograma:** compara el avance con el % del plazo transcurrido (índice ≈ avance ÷ tiempo):
+  ≥ 0,9 en tiempo, 0,7–0,9 en riesgo, < 0,7 o plazo vencido = atrasado.
+- **Finanzas:** costo de trabajo = horas reales de las tareas × tarifa por hora; costo total = trabajo + otros gastos;
+  proyección = horas estimadas × tarifa + otros; ROI = (beneficio esperado − costo) ÷ costo.
+  Reglas en `packages/contratos/src/pm.ts` (con pruebas).
+- **Gantt:** una fila por solicitud (inicio de desarrollo → cierre o fecha deseada) y sus tareas (inicio → entrega).
+  Las tareas ahora tienen fecha de **inicio** (en *Evaluación → Nueva tarea*).
+- **Riesgos:** matriz 5×5 probabilidad × impacto (bajo 1–4, medio 5–9, alto 10–14, crítico 15–25) con plan de mitigación.
+- **Deuda técnica:** registro en story points, por proyecto o solicitud, con fecha de resolución.
+
+Endpoints: `GET/POST /api/proyectos`, `GET /api/proyectos/catalogos`, `GET/PATCH/DELETE /api/proyectos/:id`,
+`PUT /api/proyectos/:id/solicitudes`, `POST /api/proyectos/:id/riesgos`, `PATCH|DELETE /api/proyectos/riesgos/:id`,
+`POST /api/proyectos/:id/deuda`, `PATCH|DELETE /api/proyectos/deuda/:id`.
+
 ## 8. Pruebas
 
 ```bash
@@ -201,7 +223,8 @@ cd services/analitica && pytest -q
 - [x] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
 - [x] **Sprint 5** – Asignación por carga de trabajo, Kanban por departamentos y administración de usuarios
 - [x] **Sprint 6** – Tareas por frente, evaluación/calificación y reportes
-- [ ] **Sprint 7** – PM Suite (Gantt, riesgos, deuda técnica, ROI) y endurecimiento
+- [x] **Sprint 7** – PM Suite: proyectos, Gantt, matriz de riesgos, deuda técnica, presupuesto y ROI
+- [ ] **Sprint 8** – Endurecimiento: pruebas E2E offline, rendimiento, seguridad y restauración de copias
 
 ## 10. Instalación en el VPS (producción)
 

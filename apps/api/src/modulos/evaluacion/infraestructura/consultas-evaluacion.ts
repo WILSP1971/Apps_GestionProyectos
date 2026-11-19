@@ -12,7 +12,8 @@ const COLUMNAS_TAREA = `
   t.id, t.titulo, t.descripcion, t.grupo_id AS "grupoId", g.nombre AS grupo,
   t.responsable_id AS "responsableId", u.nombre_completo AS responsable, t.estado::text AS estado,
   t.peso, t.avance_pct::float8 AS "avancePct", t.horas_estimadas::float8 AS "horasEstimadas",
-  t.horas_reales::float8 AS "horasReales", to_char(t.fecha_fin_plan, 'YYYY-MM-DD') AS "fechaFinPlan", t.version`;
+  t.horas_reales::float8 AS "horasReales", to_char(t.fecha_inicio, 'YYYY-MM-DD') AS "fechaInicio",
+  to_char(t.fecha_fin_plan, 'YYYY-MM-DD') AS "fechaFinPlan", t.version`;
 const DESDE_TAREA = `
   FROM gestion.tareas t
   LEFT JOIN gestion.grupos_trabajo g ON g.id = t.grupo_id
