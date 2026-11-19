@@ -18,6 +18,8 @@ export class ErrorApi extends Error {
 }
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+/** Servicio de analítica (FastAPI): Nginx lo publica en /analitica; en desarrollo lo reenvía next.config. */
+const BASE_ANALITICA = process.env.NEXT_PUBLIC_ANALITICA_URL ?? '/analitica';
 let cacheToken: { token: string; expira: number } | null = null;
 let enVuelo: Promise<string> | null = null;
 
@@ -43,9 +45,13 @@ export function olvidarToken() {
   cacheToken = null;
 }
 
-export async function apiFetch<T>(ruta: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+export async function apiFetch<T>(
+  ruta: string,
+  init: { method?: string; body?: unknown; signal?: AbortSignal; servicio?: 'api' | 'analitica' } = {},
+): Promise<T> {
+  const base = init.servicio === 'analitica' ? BASE_ANALITICA : BASE;
   const llamar = (token: string) =>
-    fetch(`${BASE}${ruta}`, {
+    fetch(`${base}${ruta}`, {
       method: init.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -61,6 +67,10 @@ export async function apiFetch<T>(ruta: string, init: { method?: string; body?: 
     r = await llamar(await obtenerToken(true));
     if (r.status === 401) throw new ErrorSesion();
   }
-  if (!r.ok) throw new ErrorApi(r.status, await r.json().catch(() => null));
+  if (!r.ok) {
+    const cuerpo = await r.json().catch(() => null);
+    // FastAPI responde { detail: "..." }; la API NestJS { codigo, mensaje }
+    throw new ErrorApi(r.status, cuerpo && typeof cuerpo.detail === 'string' ? { mensaje: cuerpo.detail } : cuerpo);
+  }
   return r.status === 204 ? (undefined as T) : ((await r.json()) as T);
 }

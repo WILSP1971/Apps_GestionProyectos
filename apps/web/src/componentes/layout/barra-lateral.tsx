@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, Settings, UserCog, UsersRound, Workflow,
+  BarChart3, ClipboardCheck, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, Settings, UserCog, UsersRound, Workflow,
 } from 'lucide-react';
 import type { Rol } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,7 @@ const SECCIONES: { titulo?: string; items: Item[] }[] = [
       { href: '/solicitudes', etiqueta: 'Bandeja de solicitudes', icono: Inbox, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/gestion/asignacion', etiqueta: 'Asignación', icono: UsersRound, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/gestion/kanban', etiqueta: 'Kanban', icono: Workflow, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
+      { href: '/gestion/evaluacion', etiqueta: 'Evaluación', icono: ClipboardCheck, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
       { href: '/proyectos', etiqueta: 'Proyectos', icono: FolderKanban, roles: ['DIRECTOR', 'ADMIN'] },
       { href: '/reportes', etiqueta: 'Reportes', icono: BarChart3, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
     ],

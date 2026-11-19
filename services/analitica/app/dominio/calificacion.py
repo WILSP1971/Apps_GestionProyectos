@@ -38,3 +38,11 @@ def avance_ponderado(tareas: list[tuple[float, int]]) -> float:
     if total == 0:
         return 0.0
     return round(sum(av * peso for av, peso in tareas) / total, 2)
+
+
+LETRAS = ("A+", "A", "B+", "B", "C", "D")
+
+
+def ordenar_letras(conteo: dict[str, int]) -> list[dict]:
+    """Distribución de letras en orden de mejor a peor, incluyendo las que no tienen evaluaciones."""
+    return [{"letra": l, "total": int(conteo.get(l, 0))} for l in LETRAS]

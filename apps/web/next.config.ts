@@ -35,7 +35,15 @@ const config: NextConfig = {
     // Desarrollo: /api/* que no resuelva Next.js (Auth.js vive en /api/auth) se envía a la API NestJS.
     // Producción: lo resuelve Nginx antes de llegar aquí.
     const api = process.env.API_URL_INTERNA ?? 'http://127.0.0.1:4000/api';
-    return { beforeFiles: [], afterFiles: [], fallback: [{ source: '/api/:ruta*', destination: `${api}/:ruta*` }] };
+    const analitica = process.env.ANALITICA_URL_INTERNA ?? 'http://127.0.0.1:8000';
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [
+        { source: '/api/:ruta*', destination: `${api}/:ruta*` },
+        { source: '/analitica/:ruta*', destination: `${analitica}/:ruta*` },
+      ],
+    };
   },
 };
 

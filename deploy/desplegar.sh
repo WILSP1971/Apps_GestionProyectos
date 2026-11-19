@@ -80,13 +80,21 @@ HEAP=$(( MEM_MB > 4096 ? 3072 : 1536 ))
 como_app "pnpm --filter @sierraflow/contratos build"
 como_app "pnpm --filter @sierraflow/api build"
 como_app "GIT_SHA=\$(git rev-parse --short HEAD 2>/dev/null || date +%s) NODE_OPTIONS=--max-old-space-size=$HEAP pnpm --filter @sierraflow/web build"
-# El servidor standalone de Next.js necesita los estáticos a su lado
-WEB_SA="$APP/apps/web/.next/standalone/apps/web"
-[[ -f "$WEB_SA/server.js" ]] || error "No se generó $WEB_SA/server.js (revise output: 'standalone' en next.config.ts)"
-# Los archivos estáticos se FUSIONAN (no se borran los anteriores): las pestañas abiertas y el
-# Service Worker con la versión vieja siguen encontrando su CSS/JS mientras se recargan.
-como_app "rm -rf '$WEB_SA/public' && cp -r apps/web/public '$WEB_SA/public' && mkdir -p '$WEB_SA/.next/static' && cp -r apps/web/.next/static/. '$WEB_SA/.next/static/'"
-ok "Compilación lista"
+[[ -f "$APP/apps/web/.next/standalone/apps/web/server.js" ]] || error "No se generó server.js (revise output: 'standalone' en next.config.ts)"
+
+# Versión publicada de la web: se copia a .releases/web/<fecha>-<commit> y "actual" apunta a ella.
+# PM2 ejecuta siempre "actual", así que mientras se compila (o si la compilación falla) la versión
+# anterior sigue atendiendo completa, con sus estilos. Se conservan las 3 últimas para volver atrás.
+REL_DIR="$APP/.releases/web"
+REL_ID="$(date +%Y%m%d%H%M%S)-$(git -C "$APP" rev-parse --short HEAD 2>/dev/null || echo local)"
+REL="$REL_DIR/$REL_ID"
+como_app "mkdir -p '$REL_DIR' && cp -a apps/web/.next/standalone '$REL' \
+  && cp -r apps/web/public '$REL/apps/web/public' \
+  && mkdir -p '$REL/apps/web/.next' && cp -r apps/web/.next/static '$REL/apps/web/.next/static' \
+  && ln -sfn '$REL' '$REL_DIR/actual.nuevo' && mv -Tf '$REL_DIR/actual.nuevo' '$REL_DIR/actual'"
+# Limpieza: por nombre (fecha) de la más nueva a la más vieja; nunca toca la recién publicada
+como_app "ls -1d '$REL_DIR'/2*/ 2>/dev/null | sort -r | tail -n +4 | grep -v '/$REL_ID/' | xargs -r rm -rf"
+ok "Compilación lista · web publicada en .releases/web/$REL_ID"
 
 paso "5/7 Servicio de analítica (Python)"
 como_app "cd services/analitica && { [[ -x .venv/bin/python ]] || python3 -m venv .venv; } && .venv/bin/pip install -q --upgrade pip && .venv/bin/pip install -q -r requirements.txt"
@@ -98,6 +106,8 @@ else
 fi
 
 paso "6/7 Procesos Node (PM2)"
+# Instalaciones anteriores ejecutaban la web desde apps/web/.next: se recrea una vez con la ruta nueva
+como_app "pm2 describe sierraflow-web 2>/dev/null | grep -q '.releases/web' || pm2 delete sierraflow-web >/dev/null 2>&1 || true"
 como_app "pm2 startOrReload deploy/ecosystem.config.cjs --update-env && pm2 save"
 
 paso "7/7 Verificación"

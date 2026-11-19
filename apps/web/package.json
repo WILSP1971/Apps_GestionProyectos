@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "lint": "tsc --noEmit",
     "preview": "next build && next start -p 3000",
-    "test": "node --import tsx --test src/lib/offline/sync/plan.test.ts src/modulos/asignacion/dominio/recomendacion.test.ts"
+    "test": "node --import tsx --test src/lib/offline/sync/plan.test.ts src/modulos/asignacion/dominio/recomendacion.test.ts src/modulos/reportes/dominio/indicadores.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

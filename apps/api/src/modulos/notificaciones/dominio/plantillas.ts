@@ -14,6 +14,10 @@ export interface ContextoEvento {
   comentario?: string | null;
   extracto?: string | null;
   consumoPct?: number | null;
+  /** Evaluaciones: "B+ (8.2/10)" */
+  nota?: string | null;
+  avancePct?: number | null;
+  tipoEvaluacion?: 'AVANCE' | 'CIERRE' | null;
 }
 
 export interface Regla {
@@ -101,6 +105,24 @@ export const PLANTILLAS: Record<string, Regla[]> = {
     quien: 'PARTICIPANTES', grupo: 'COMENTARIOS', severidad: 'INFO',
     titulo: (c) => `Nuevo comentario en ${c.codigo}`,
     mensaje: (c) => `${c.actor ?? 'Alguien'}: "${c.extracto ?? ''}"`,
+  }],
+  'evaluacion.registrada': [
+    {
+      quien: 'ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
+      titulo: (c) => `${c.tipoEvaluacion === 'CIERRE' ? 'Evaluación de cierre' : 'Seguimiento'} de ${c.codigo}: ${c.nota ?? ''}`.trim(),
+      mensaje: (c) => `${c.actor ?? 'El líder'} calificó "${c.titulo}" con ${c.nota ?? 'una nueva nota'}` +
+        `${c.avancePct != null ? ` · avance ${Math.round(c.avancePct)}%` : ''}.${c.comentario ? ` "${c.comentario}"` : ''}`,
+    },
+    {
+      quien: 'SOLICITANTE', grupo: 'MIS_SOLICITUDES', severidad: 'INFO',
+      titulo: (c) => `Avance de ${c.codigo}: ${c.avancePct != null ? `${Math.round(c.avancePct)}%` : 'actualizado'}`,
+      mensaje: (c) => `Se registró ${c.tipoEvaluacion === 'CIERRE' ? 'la evaluación de cierre' : 'un seguimiento'} de "${c.titulo}".`,
+    },
+  ],
+  'tarea.asignada': [{
+    quien: 'NUEVOS_ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
+    titulo: (c) => `Nueva tarea en ${c.codigo}`,
+    mensaje: (c) => `${c.actor ?? 'El líder'} te asignó la tarea "${c.extracto ?? ''}" de "${c.titulo}".`,
   }],
   'sla.en_riesgo': [{
     quien: 'GESTORES', grupo: 'SLA', severidad: 'ALERTA',

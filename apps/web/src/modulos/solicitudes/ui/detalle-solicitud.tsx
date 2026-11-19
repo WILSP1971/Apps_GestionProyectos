@@ -119,6 +119,9 @@ export function DetalleSolicitud() {
   const s = solicitud;
   const acciones = transicionesDisponibles(s.estado, actor.roles);
   const criteriosEditables = ['EN_DESARROLLO', 'EN_VALIDACION'].includes(s.estado);
+  // Avance por tareas y calificación: líderes/directores y el propio equipo asignado
+  const veAvance = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION', 'CERRADA'].includes(s.estado)
+    && (actor.roles.some((r) => r === 'LIDER' || r === 'DIRECTOR' || r === 'ADMIN') || s.asignados.some((a) => a.usuarioId === actor.id));
 
   const ejecutar = async (regla: ReglaTransicion, comentario?: string) => {
     try {
@@ -225,7 +228,10 @@ export function DetalleSolicitud() {
 
         {/* 4 · Gestión y seguimiento */}
         <div className="space-y-5">
-          <Tarjeta titulo={<span className="inline-flex items-center gap-2"><UsersRound className="size-4 text-primario" />Equipo asignado</span>}>
+          <Tarjeta titulo={<span className="inline-flex items-center gap-2"><UsersRound className="size-4 text-primario" />Equipo asignado</span>}
+            acciones={veAvance && (
+              <Link href={`/gestion/evaluacion/${s.id}`} className="text-xs font-medium text-primario hover:underline">Avance y tareas →</Link>
+            )}>
             {s.asignados.length === 0 ? (
               <p className="text-sm text-atenuado">Aún no hay ingenieros asignados.</p>
             ) : (

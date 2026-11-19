@@ -48,3 +48,19 @@ test('quien se suma a un equipo en curso recibe aviso (solo los nuevos)', () => 
   assert.equal(r!.quien, 'NUEVOS_ASIGNADOS');
   assert.match(r!.titulo(ctx), /Te sumaron al equipo de SOL-000234/);
 });
+
+test('la evaluación avisa al equipo con la nota y al solicitante con el avance', () => {
+  const reglas = PLANTILLAS['evaluacion.registrada']!;
+  assert.deepEqual(reglas.map((r) => r.quien), ['ASIGNADOS', 'SOLICITANTE']);
+  const c = { ...ctx, comentario: null, nota: 'B+ (8.2/10)', avancePct: 64.5, tipoEvaluacion: 'AVANCE' as const };
+  assert.match(reglas[0]!.titulo(c), /Seguimiento de SOL-000234: B\+ \(8\.2\/10\)/);
+  assert.match(reglas[0]!.mensaje(c), /Carlos Ruiz calificó .* avance 65%/);
+  assert.match(reglas[1]!.titulo(c), /65%/);
+  assert.doesNotMatch(reglas[1]!.mensaje(c), /8\.2/, 'el solicitante no ve la nota interna del equipo');
+});
+
+test('una tarea asignada avisa solo al responsable indicado', () => {
+  const [r] = PLANTILLAS['tarea.asignada']!;
+  assert.equal(r!.quien, 'NUEVOS_ASIGNADOS');
+  assert.match(r!.mensaje({ ...ctx, extracto: 'Webhook de pagos' }), /Webhook de pagos/);
+});

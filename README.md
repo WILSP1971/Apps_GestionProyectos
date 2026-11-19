@@ -155,6 +155,33 @@ tecnologías y capacidad semanal en *Usuarios y equipos*. La recomendación orde
 coincidentes, pertenencia al grupo elegido y carga (`apps/web/src/modulos/asignacion/dominio/recomendacion.ts`).
 Al confirmar sobre una solicitud **Aprobada**, pasa a **Asignada** y los nuevos integrantes reciben aviso.
 
+### Evaluación y reportes (Sprint 6)
+
+| Pantalla | Ruta | Quién |
+|---|---|---|
+| Seguimiento y evaluación | `/gestion/evaluacion` | LIDER, DIRECTOR |
+| Avance, tareas y calificación | `/gestion/evaluacion/:id` | LIDER, DIRECTOR · el ingeniero del equipo ve el avance y actualiza sus tareas |
+| Reportes e indicadores | `/reportes` | LIDER, DIRECTOR |
+
+- **Tareas por frente:** el líder crea tareas (frente = grupo de trabajo, responsable, peso 1–10, horas, entrega).
+  El avance general es el promedio ponderado por peso (trigger `fn_recalcular_avance`). Una tarea al 100 % queda
+  *Completada* (migración 010). El primer avance de una solicitud *Asignada* la pasa sola a *En desarrollo*.
+- **Calificación:** criterios 1–5 con los pesos de `criterios_calificacion` → nota 0–10 y letra (A+ … D),
+  calculadas con `packages/contratos/src/calificacion.ts` (mismas reglas que `services/analitica`).
+  Calificación individual opcional por ingeniero. El equipo recibe la nota; el solicitante solo el avance.
+- **Reportes:** el navegador consulta el servicio Python en `/analitica/kpis/*` (resumen, departamentos, sla,
+  tendencia, tiempos, carga-ingenieros, calificaciones). Cada bloque se descarga en CSV (Excel en español).
+
+Endpoints nuevos: `GET /api/evaluacion/solicitudes`, `GET /api/evaluacion/solicitudes/:id`,
+`POST /api/evaluacion/solicitudes/:id/evaluaciones`, `POST /api/evaluacion/solicitudes/:id/tareas`,
+`PATCH /api/evaluacion/tareas/:id`, `DELETE /api/evaluacion/tareas/:id?version=N`,
+`GET /analitica/kpis/tendencia|tiempos|calificaciones`.
+
+**Despliegue sin cortes (desde este sprint):** `desplegar.sh` compila y luego publica la web en
+`.releases/web/<fecha>-<commit>`; PM2 ejecuta el enlace `.releases/web/actual`. Mientras compila, o si la
+compilación falla, sigue atendiendo la versión anterior completa. Para volver a la anterior:
+`ln -sfn .releases/web/<versión> .releases/web/actual && pm2 reload sierraflow-web`.
+
 ## 8. Pruebas
 
 ```bash
@@ -170,7 +197,7 @@ cd services/analitica && pytest -q
 - [x] **Sprint 3** – Motor de sincronización offline (push/pull) + Service Worker (Serwist)
 - [x] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
 - [x] **Sprint 5** – Asignación por carga de trabajo, Kanban por departamentos y administración de usuarios
-- [ ] **Sprint 6** – Evaluación/calificación y reportes
+- [x] **Sprint 6** – Tareas por frente, evaluación/calificación y reportes
 - [ ] **Sprint 7** – PM Suite (Gantt, riesgos, deuda técnica, ROI) y endurecimiento
 
 ## 10. Instalación en el VPS (producción)

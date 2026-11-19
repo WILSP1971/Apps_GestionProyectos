@@ -3,3 +3,5 @@ export * from './solicitudes';
 export * from './sync';
 export * from './notificaciones';
 export * from './asignacion';
+export * from './calificacion';
+export * from './evaluacion';

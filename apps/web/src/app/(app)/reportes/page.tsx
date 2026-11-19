@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
-import { EnConstruccion } from '@/componentes/layout/en-construccion';
+import { Encabezado } from '@/componentes/layout/encabezado';
+import { PanelReportes } from '@/modulos/reportes/ui/panel-reportes';
 
 export const metadata: Metadata = { title: 'Reportes y analítica' };
 
 export default function PaginaReportes() {
-  return <EnConstruccion titulo="Reportes y analítica" sprint="Sprint 6" contenido={["Distribución por estado y departamento", "Tiempo promedio de resolución y SLA", "Carga por ingeniero"]} />;
+  return (
+    <>
+      <Encabezado antetitulo="Analítica" titulo="Reportes e indicadores"
+        descripcion="Solicitudes por departamento, tendencia, tiempos de ciclo, SLA, carga del equipo y calificaciones." />
+      <PanelReportes />
+    </>
+  );
 }

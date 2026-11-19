@@ -35,13 +35,13 @@ const G = {
   qa: '0000000a-0000-4000-8000-000000000003',
   devops: '0000000a-0000-4000-8000-000000000004',
 };
-const GRUPOS_DEMO: GrupoTrabajo[] = [
+export const GRUPOS_DEMO: GrupoTrabajo[] = [
   { id: G.backend, nombre: 'Backend', descripcion: 'APIs, integraciones y servicios', miembros: 3 },
   { id: G.devops, nombre: 'DevOps', descripcion: 'Infraestructura y despliegues', miembros: 1 },
   { id: G.frontend, nombre: 'Frontend', descripcion: 'Interfaces web y móviles', miembros: 2 },
   { id: G.qa, nombre: 'QA', descripcion: 'Aseguramiento de calidad', miembros: 1 },
 ];
-const INGENIEROS_DEMO: IngenieroCarga[] = [
+export const INGENIEROS_DEMO: IngenieroCarga[] = [
   { usuarioId: '0000000b-0000-4000-8000-000000000001', nombre: 'Luis F.', avatar: null, grupos: ['Backend'], tecnologias: ['Node.js', 'NestJS', 'PostgreSQL', 'MercadoPago API'], solicitudesActivas: 2, horasPendientes: 26, capacidadSemana: 40, cargaPct: 65 },
   { usuarioId: '0000000b-0000-4000-8000-000000000002', nombre: 'María T.', avatar: null, grupos: ['Frontend'], tecnologias: ['Next.js', 'React'], solicitudesActivas: 1, horasPendientes: 16, capacidadSemana: 40, cargaPct: 40 },
   { usuarioId: '0000000b-0000-4000-8000-000000000003', nombre: 'Andrés S.', avatar: null, grupos: ['Backend', 'Frontend'], tecnologias: ['Next.js', 'Node.js', 'Python/FastAPI'], solicitudesActivas: 3, horasPendientes: 34, capacidadSemana: 40, cargaPct: 85 },

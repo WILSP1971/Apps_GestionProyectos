@@ -29,7 +29,8 @@ module.exports = {
   apps: [
     {
       name: 'sierraflow-web',
-      cwd: path.join(RAIZ, 'apps/web/.next/standalone/apps/web'),
+      // Versión publicada por desplegar.sh (enlace .releases/web/actual → .releases/web/<fecha>-<commit>)
+      cwd: path.join(RAIZ, '.releases/web/actual/apps/web'),
       script: 'server.js',
       env: { ...env, NODE_ENV: 'production', PORT: env.PUERTO_WEB || '3010', HOSTNAME: '127.0.0.1' },
       max_memory_restart: '700M',

@@ -45,7 +45,10 @@ export class ManejadorNotificaciones {
       consumoPct: typeof p.consumoPct === 'number' ? p.consumoPct : null,
       extracto: ev.tipo_evento === 'comentario.creado'
         ? extracto((await this.repo.contenidoComentario(p.comentarioId as string)) ?? '')
-        : null,
+        : typeof p.tarea === 'string' ? extracto(p.tarea, 80) : null,
+      nota: typeof p.nota === 'number' ? `${String(p.letra ?? '')} (${p.nota.toFixed(1)}/10)`.trim() : null,
+      avancePct: typeof p.avancePct === 'number' ? p.avancePct : null,
+      tipoEvaluacion: p.tipo === 'AVANCE' || p.tipo === 'CIERRE' ? p.tipo : null,
     };
     const solicitanteId = solicitud?.solicitanteId ?? (p.solicitanteId as string | undefined) ?? null;
     const enlace = `/solicitudes/${ev.agregado_id}`;

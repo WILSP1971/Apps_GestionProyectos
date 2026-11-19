@@ -37,3 +37,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Versiones publicadas de la web en el servidor (deploy/desplegar.sh)
+.releases/
