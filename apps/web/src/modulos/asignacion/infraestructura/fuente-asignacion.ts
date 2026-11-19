@@ -42,11 +42,11 @@ export const GRUPOS_DEMO: GrupoTrabajo[] = [
   { id: G.qa, nombre: 'QA', descripcion: 'Aseguramiento de calidad', miembros: 1 },
 ];
 export const INGENIEROS_DEMO: IngenieroCarga[] = [
-  { usuarioId: '0000000b-0000-4000-8000-000000000001', nombre: 'Luis F.', avatar: null, grupos: ['Backend'], tecnologias: ['Node.js', 'NestJS', 'PostgreSQL', 'MercadoPago API'], solicitudesActivas: 2, horasPendientes: 26, capacidadSemana: 40, cargaPct: 65 },
+  { usuarioId: '0000000b-0000-4000-8000-000000000001', nombre: 'Luis F.', avatar: null, grupos: ['Backend'], tecnologias: ['Node.js', 'NestJS', 'PostgreSQL', '.NET'], solicitudesActivas: 2, horasPendientes: 26, capacidadSemana: 40, cargaPct: 65 },
   { usuarioId: '0000000b-0000-4000-8000-000000000002', nombre: 'María T.', avatar: null, grupos: ['Frontend'], tecnologias: ['Next.js', 'React'], solicitudesActivas: 1, horasPendientes: 16, capacidadSemana: 40, cargaPct: 40 },
   { usuarioId: '0000000b-0000-4000-8000-000000000003', nombre: 'Andrés S.', avatar: null, grupos: ['Backend', 'Frontend'], tecnologias: ['Next.js', 'Node.js', 'Python/FastAPI'], solicitudesActivas: 3, horasPendientes: 34, capacidadSemana: 40, cargaPct: 85 },
-  { usuarioId: '0000000b-0000-4000-8000-000000000004', nombre: 'Diego P.', avatar: null, grupos: ['Backend'], tecnologias: ['Node.js', 'Next.js', 'Stripe API'], solicitudesActivas: 0, horasPendientes: 8, capacidadSemana: 40, cargaPct: 20 },
-  { usuarioId: '0000000b-0000-4000-8000-000000000005', nombre: 'Marcela J.', avatar: null, grupos: ['QA'], tecnologias: ['React'], solicitudesActivas: 1, horasPendientes: 12, capacidadSemana: 40, cargaPct: 30 },
+  { usuarioId: '0000000b-0000-4000-8000-000000000004', nombre: 'Diego P.', avatar: null, grupos: ['Backend'], tecnologias: ['Node.js', 'Next.js', 'JavaScript'], solicitudesActivas: 0, horasPendientes: 8, capacidadSemana: 40, cargaPct: 20 },
+  { usuarioId: '0000000b-0000-4000-8000-000000000005', nombre: 'Marcela J.', avatar: null, grupos: ['QA'], tecnologias: ['React', 'HTML/CSS', 'JavaScript'], solicitudesActivas: 1, horasPendientes: 12, capacidadSemana: 40, cargaPct: 30 },
   { usuarioId: '0000000b-0000-4000-8000-000000000006', nombre: 'Camilo R.', avatar: null, grupos: ['DevOps'], tecnologias: ['Nginx', 'PostgreSQL'], solicitudesActivas: 4, horasPendientes: 44, capacidadSemana: 40, cargaPct: 110 },
 ];
 

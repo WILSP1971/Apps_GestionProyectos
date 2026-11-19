@@ -28,9 +28,9 @@ INSERT INTO grupos_trabajo(nombre, descripcion) VALUES
 ON CONFLICT (nombre) DO NOTHING;
 
 INSERT INTO tecnologias(nombre, categoria) VALUES
- ('Next.js','frontend'), ('React','frontend'), ('Node.js','backend'), ('NestJS','backend'),
- ('Python/FastAPI','backend'), ('PostgreSQL','datos'), ('Stripe API','integracion'),
- ('MercadoPago API','integracion'), ('Nginx','infraestructura')
+ ('Next.js','frontend'), ('React','frontend'), ('JavaScript','frontend'), ('HTML/CSS','frontend'),
+ ('Node.js','backend'), ('NestJS','backend'), ('.NET','backend'), ('Python/FastAPI','backend'),
+ ('PostgreSQL','datos'), ('Nginx','infraestructura')
 ON CONFLICT (nombre) DO NOTHING;
 
 INSERT INTO criterios_calificacion(codigo, nombre, peso) VALUES

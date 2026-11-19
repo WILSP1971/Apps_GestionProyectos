@@ -10,7 +10,7 @@ export class RepositorioAdmin {
       db().query(`SELECT codigo, nombre FROM gestion.roles ORDER BY id`),
       db().query(`SELECT id, codigo, nombre, color_hex AS "colorHex" FROM gestion.departamentos WHERE activo AND NOT eliminado ORDER BY nombre`),
       db().query(`SELECT id, nombre FROM gestion.grupos_trabajo WHERE activo AND NOT eliminado ORDER BY nombre`),
-      db().query(`SELECT id, nombre, categoria FROM gestion.tecnologias ORDER BY categoria NULLS LAST, nombre`),
+      db().query(`SELECT id, nombre, categoria FROM gestion.tecnologias WHERE activo ORDER BY categoria NULLS LAST, nombre`),
     ]);
     return { roles: roles.rows, departamentos: departamentos.rows, grupos: grupos.rows, tecnologias: tecnologias.rows };
   }
@@ -43,7 +43,7 @@ export class RepositorioAdmin {
   async crear(n: NuevoUsuario): Promise<string> {
     const { rows: [u] } = await db().query(
       `INSERT INTO gestion.usuarios(email, nombre_completo, cargo, departamento_id, proveedor_oauth, sujeto_oauth)
-       VALUES ($1, $2, $3, $4, 'invitado', 'invitado:' || $1)
+       VALUES ($1::text, $2, $3, $4, 'invitado', 'invitado:' || $1::text)
        ON CONFLICT (email) DO NOTHING
        RETURNING id`,
       [n.email, n.nombre, n.cargo ?? null, n.departamentoId ?? null]);
@@ -64,7 +64,7 @@ export class RepositorioAdmin {
       }
       await db().query(
         `UPDATE gestion.usuarios
-            SET email = coalesce($2, email),
+            SET email = coalesce($2::text, email),
                 sujeto_oauth = CASE WHEN proveedor_oauth = 'invitado' AND $2::text IS NOT NULL THEN 'invitado:' || $2 ELSE sujeto_oauth END,
                 nombre_completo = coalesce($3, nombre_completo)
           WHERE id = $1`, [id, c.email ?? null, c.nombre ?? null]);

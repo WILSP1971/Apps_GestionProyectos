@@ -28,7 +28,8 @@ const PASOS = [
   { titulo: 'Revisión y envío', campos: [] },
 ] as const;
 
-const TECNOLOGIAS = ['Next.js', 'React', 'Node.js', 'NestJS', 'Python/FastAPI', 'PostgreSQL', 'Stripe API', 'MercadoPago API', 'Nginx'];
+// Debe coincidir con el catálogo activo de gestion.tecnologias (migración 011)
+const TECNOLOGIAS = ['Next.js', 'React', 'JavaScript', 'HTML/CSS', 'Node.js', 'NestJS', '.NET', 'Python/FastAPI', 'PostgreSQL', 'Nginx'];
 const CLAVE_BORRADOR = 'borrador-nueva-solicitud';
 
 const VALORES_INICIALES: Formulario = {
