@@ -1,4 +1,5 @@
-import type { Asignacion, GrupoTrabajo, IngenieroCarga, MiembroEquipo } from '@sierraflow/contratos';
+import type { Asignacion, EntradaHistorialSync, EstadoSolicitud, GrupoTrabajo, IngenieroCarga, MiembroEquipo } from '@sierraflow/contratos';
+import type { Asignado } from '@/lib/offline/db';
 import { apiFetch } from '@/lib/api';
 import { dbLocal } from '@/lib/offline/db';
 import { motorSync } from '@/lib/offline/sync/motor-sync';
@@ -64,7 +65,7 @@ export const fuenteDemo: FuenteAsignacion = {
     const s = await dbLocal.solicitudes.get(id);
     if (!s) throw new Error('La solicitud no existe');
     const ahora = new Date().toISOString();
-    const asignados = [
+    const asignados: Asignado[] = [
       ...datos.grupos.map((g) => ({ usuarioId: null, nombre: GRUPOS_DEMO.find((x) => x.id === g)?.nombre ?? 'Grupo', grupo: 'Grupo de trabajo' })),
       ...datos.ingenieros.map((i) => {
         const ing = INGENIEROS_DEMO.find((x) => x.usuarioId === i.usuarioId)!;
@@ -72,13 +73,15 @@ export const fuenteDemo: FuenteAsignacion = {
       }),
     ];
     const pasaAAsignada = s.estado === 'APROBADA';
+    const nuevoEstado: EstadoSolicitud = pasaAAsignada ? 'ASIGNADA' : s.estado;
+    const historial: EntradaHistorialSync[] = pasaAAsignada
+      ? [...s.historial, { estadoAnterior: 'APROBADA', estadoNuevo: 'ASIGNADA', usuario: actor, comentario: datos.comentario ?? null, fecha: ahora }]
+      : s.historial;
     await dbLocal.transaction('rw', dbLocal.solicitudes, dbLocal.notificaciones, async () => {
       await dbLocal.solicitudes.update(id, {
         asignados,
-        estado: pasaAAsignada ? 'ASIGNADA' : s.estado,
-        historial: pasaAAsignada
-          ? [...s.historial, { estadoAnterior: 'APROBADA', estadoNuevo: 'ASIGNADA', usuario: actor, comentario: datos.comentario ?? null, fecha: ahora }]
-          : s.historial,
+        estado: nuevoEstado,
+        historial,
         actualizadoEn: ahora,
       });
       await dbLocal.notificaciones.add({

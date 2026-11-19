@@ -38,6 +38,7 @@ const DESCRIPCION_OPERACION: Record<ConflictoLocal['tipo'], (p: Record<string, u
   cambiar_estado: (p) => `Cambiar el estado a "${ETIQUETA_ESTADO[p.hacia as EstadoSolicitud] ?? p.hacia}"`,
   marcar_criterio: (p) => (p.cumplido ? 'Marcar un criterio como cumplido' : 'Desmarcar un criterio'),
   comentar: (p) => `Comentario: "${String(p.contenido ?? '').slice(0, 60)}"`,
+  leer_notificacion: () => 'Marcar una notificación como leída',
 };
 
 /** Cambios locales que el servidor no aplicó (conflicto de versión o regla de negocio). */
