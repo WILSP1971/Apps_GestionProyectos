@@ -99,6 +99,7 @@ export function DetalleSolicitud() {
   // El id se toma de la URL real (no de los parámetros del servidor): así la misma página en caché
   // del Service Worker sirve para abrir cualquier solicitud sin conexión.
   const ruta = usePathname();
+  const router = useRouter();
   const id = decodeURIComponent(ruta.split('/').filter(Boolean).pop() ?? '');
   const actor = useActor();
   // undefined = cargando · null = no existe en este equipo
@@ -129,7 +130,10 @@ export function DetalleSolicitud() {
     }
   };
 
-  const alPulsar = (regla: ReglaTransicion) => (regla.requiereComentario ? setAccion(regla) : ejecutar(regla));
+  const alPulsar = (regla: ReglaTransicion) => {
+    if (regla.hacia === 'ASIGNADA') return router.push(`/gestion/asignacion?solicitud=${s.id}`);
+    return regla.requiereComentario ? setAccion(regla) : ejecutar(regla);
+  };
 
   return (
     <div className="space-y-5">

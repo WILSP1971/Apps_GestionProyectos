@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, Settings, UsersRound, Workflow,
+  BarChart3, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, Settings, UserCog, UsersRound, Workflow,
 } from 'lucide-react';
 import type { Rol } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ const SECCIONES: { titulo?: string; items: Item[] }[] = [
   {
     titulo: 'Cuenta',
     items: [
+      { href: '/administracion/usuarios', etiqueta: 'Usuarios y equipos', icono: UserCog, roles: ['ADMIN'] },
       { href: '/configuracion', etiqueta: 'Configuración', icono: Settings },
       { href: '/ayuda', etiqueta: 'Ayuda', icono: HelpCircle },
     ],

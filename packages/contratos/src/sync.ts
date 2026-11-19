@@ -50,13 +50,14 @@ export interface SolicitudSync {
   estado: EstadoSolicitud;
   avancePct: number;
   departamento: string;
+  departamentoColor?: string;
   solicitanteId: string;
   solicitanteNombre: string;
   fechaDeseada?: string;
   tecnologias: string[];
   criterios: CriterioAceptacion[];
   historial: EntradaHistorialSync[];
-  asignados: { nombre: string; grupo: string }[];
+  asignados: { usuarioId?: string | null; nombre: string; grupo: string; rol?: string }[];
   version: number;
   creadoEn: string;
   actualizadoEn: string;

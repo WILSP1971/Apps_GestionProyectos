@@ -55,7 +55,8 @@ export class ManejadorNotificaciones {
 
     for (const regla of reglas) {
       const grupo = GRUPOS_NOTIFICACION.find((g) => g.codigo === regla.grupo)!;
-      for (const usuarioId of await this.repo.destinatarios(regla.quien, ev.agregado_id, solicitanteId)) {
+      const explicitos = Array.isArray(p.nuevos) ? (p.nuevos as string[]) : [];
+      for (const usuarioId of await this.repo.destinatarios(regla.quien, ev.agregado_id, solicitanteId, explicitos)) {
         if (yaNotificados.has(usuarioId)) continue;
         yaNotificados.add(usuarioId);
 

@@ -26,10 +26,15 @@ export class RepositorioNotificaciones {
   }
 
   /** Usuarios activos que corresponden a un tipo de destinatario para una solicitud. */
-  async destinatarios(quien: Destinatario, solicitudId: string, solicitanteId: string | null): Promise<string[]> {
+  async destinatarios(quien: Destinatario, solicitudId: string, solicitanteId: string | null, explicitos: string[] = []): Promise<string[]> {
     let sql: string;
     let params: unknown[];
     switch (quien) {
+      case 'NUEVOS_ASIGNADOS':
+        if (!explicitos.length) return [];
+        sql = `SELECT unnest($1::uuid[]) AS id`;
+        params = [explicitos];
+        break;
       case 'SOLICITANTE':
         if (!solicitanteId) return [];
         sql = `SELECT $1::uuid AS id`;

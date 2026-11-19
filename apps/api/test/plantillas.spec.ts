@@ -42,3 +42,9 @@ test('extracto recorta y normaliza espacios', () => {
   assert.equal(extracto('  hola\n\n mundo  '), 'hola mundo');
   assert.equal(extracto('x'.repeat(200), 10).length, 10);
 });
+
+test('quien se suma a un equipo en curso recibe aviso (solo los nuevos)', () => {
+  const [r] = PLANTILLAS['solicitud.equipo_actualizado']!;
+  assert.equal(r!.quien, 'NUEVOS_ASIGNADOS');
+  assert.match(r!.titulo(ctx), /Te sumaron al equipo de SOL-000234/);
+});

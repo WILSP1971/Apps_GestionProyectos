@@ -4,7 +4,7 @@ import type { Canal, GrupoNotificacion } from '@sierraflow/contratos';
  * Reglas de notificación por evento de dominio (lógica pura, sin BD: se prueba con node:test).
  * Cada evento puede generar notificaciones para varios tipos de destinatario, con textos distintos.
  */
-export type Destinatario = 'SOLICITANTE' | 'GESTORES' | 'ASIGNADOS' | 'PARTICIPANTES';
+export type Destinatario = 'SOLICITANTE' | 'GESTORES' | 'ASIGNADOS' | 'PARTICIPANTES' | 'NUEVOS_ASIGNADOS';
 export type Severidad = 'INFO' | 'EXITO' | 'ALERTA' | 'CRITICA';
 
 export interface ContextoEvento {
@@ -65,6 +65,11 @@ export const PLANTILLAS: Record<string, Regla[]> = {
       mensaje: (c) => `Fuiste asignado a "${c.titulo}"${por(c)}.`,
     },
   ],
+  'solicitud.equipo_actualizado': [{
+    quien: 'NUEVOS_ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
+    titulo: (c) => `Te sumaron al equipo de ${c.codigo}`,
+    mensaje: (c) => `Ahora formas parte del equipo de "${c.titulo}"${por(c)}.`,
+  }],
   'solicitud.en_desarrollo': [{
     quien: 'SOLICITANTE', grupo: 'MIS_SOLICITUDES', severidad: 'INFO',
     titulo: (c) => `${c.codigo} está en desarrollo`,

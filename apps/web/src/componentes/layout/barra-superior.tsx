@@ -11,7 +11,8 @@ import { motorSync } from '@/lib/offline/sync/motor-sync';
 import { cn, haceTiempo } from '@/lib/utils';
 import { reiniciarDemo } from '@/modulos/solicitudes/infraestructura/datos-demo';
 import { marcarNotificacionLeida, marcarTodasLeidas } from '@/modulos/notificaciones/aplicacion/casos-uso';
-import { Avatar, Boton } from '@/componentes/ui/primitivos';
+import { Boton } from '@/componentes/ui/primitivos';
+import { MenuUsuario } from './menu-usuario';
 import { useUsuario } from './proveedores';
 
 const VISTAS: { etiqueta: string; roles: Rol[] }[] = [
@@ -184,13 +185,7 @@ export function BarraSuperior() {
           </div>
         )}
         <Campana />
-        <div className="hidden items-center gap-2.5 sm:flex">
-          <Avatar nombre={usuario.nombre} />
-          <div className="leading-tight">
-            <p className="text-sm font-medium">{usuario.nombre}</p>
-            <p className="text-[11px] text-atenuado">{usuario.cargo || usuario.departamento}</p>
-          </div>
-        </div>
+        <MenuUsuario />
         <Link href="/solicitudes/nueva">
           <Boton tamano="sm"><Plus className="size-4" /> <span className="hidden md:inline">Crear nueva solicitud</span></Boton>
         </Link>

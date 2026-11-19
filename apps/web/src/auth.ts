@@ -73,6 +73,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: proveedores,
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: '/login', error: '/login' },
+  events: {
+    // Al cerrar sesión se revoca el refresh token en la API (toda su familia de sesiones)
+    async signOut(mensaje) {
+      const token = 'token' in mensaje ? (mensaje.token as TokenSesion | null) : null;
+      if (!token?.refreshToken) return;
+      await fetch(`${API}/auth/cerrar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: token.refreshToken }),
+        cache: 'no-store',
+      }).catch(() => undefined);
+    },
+  },
   callbacks: {
     /**
      * Tras el login en Google/Microsoft se intercambia el id_token con la API.

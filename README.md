@@ -138,6 +138,23 @@ Cómo funciona:
 Conflictos: si otra persona cambió la solicitud mientras estabas sin conexión, prevalece el servidor
 y el detalle de la solicitud muestra el cambio que no se aplicó, con **Reintentar** o **Descartar**.
 
+### Asignación, Kanban y usuarios (Sprint 5)
+
+| Pantalla | Ruta | Quién |
+|---|---|---|
+| Asignación de grupo / ingenieros | `/gestion/asignacion` | LIDER, DIRECTOR |
+| Kanban por departamentos | `/gestion/kanban` | LIDER, DIRECTOR, ADMIN |
+| Usuarios y equipos | `/administracion/usuarios` | ADMIN |
+
+Endpoints nuevos: `GET /api/asignacion/ingenieros`, `GET /api/asignacion/grupos`,
+`GET /api/asignacion/solicitudes/:id/equipo`, `PUT /api/asignacion/solicitudes/:id`,
+`GET /api/admin/catalogos`, `GET /api/admin/usuarios`, `PATCH /api/admin/usuarios/:id`.
+
+Para que aparezcan ingenieros en la asignación, un ADMIN les da el rol **INGENIERO**, sus grupos,
+tecnologías y capacidad semanal en *Usuarios y equipos*. La recomendación ordena por tecnologías
+coincidentes, pertenencia al grupo elegido y carga (`apps/web/src/modulos/asignacion/dominio/recomendacion.ts`).
+Al confirmar sobre una solicitud **Aprobada**, pasa a **Asignada** y los nuevos integrantes reciben aviso.
+
 ## 8. Pruebas
 
 ```bash
@@ -152,7 +169,7 @@ cd services/analitica && pytest -q
 - [x] **Sprint 2** – Solicitudes: asistente de 4 pasos, Mis solicitudes, detalle con línea de vida, comentarios
 - [x] **Sprint 3** – Motor de sincronización offline (push/pull) + Service Worker (Serwist)
 - [x] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
-- [ ] **Sprint 5** – Asignación por carga de trabajo y Kanban por departamentos
+- [x] **Sprint 5** – Asignación por carga de trabajo, Kanban por departamentos y administración de usuarios
 - [ ] **Sprint 6** – Evaluación/calificación y reportes
 - [ ] **Sprint 7** – PM Suite (Gantt, riesgos, deuda técnica, ROI) y endurecimiento
 

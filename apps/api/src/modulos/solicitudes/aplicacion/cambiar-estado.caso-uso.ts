@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { EstadoSolicitud } from '@sierraflow/contratos';
-import { ConflictoConcurrencia, NoEncontrado } from '../../../compartido/dominio/errores';
+import { ConflictoConcurrencia, ErrorDominio, NoEncontrado } from '../../../compartido/dominio/errores';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
-import { enTransaccion } from '../../../compartido/infraestructura/base-datos';
+import { db, enTransaccion } from '../../../compartido/infraestructura/base-datos';
 import { REPOSITORIO_SOLICITUDES, RepositorioSolicitudes } from '../dominio/solicitud.repositorio';
 
 export interface CambioEstadoComando {
@@ -23,6 +23,11 @@ export class CambiarEstadoSolicitudCasoUso {
         const s = await this.repo.porId(id);
         if (!s) throw new NoEncontrado('Solicitud', id);
         if (cambio.version !== undefined && s.version !== cambio.version) throw new ConflictoConcurrencia('Solicitud', id);
+        if (cambio.hacia === 'ASIGNADA') {
+          const { rows: [r] } = await db().query(
+            `SELECT count(*)::int AS n FROM gestion.asignaciones WHERE solicitud_id = $1 AND activa AND NOT eliminado`, [id]);
+          if (!r.n) throw new ErrorDominio('SIN_EQUIPO', 'Asigna al menos un ingeniero o grupo desde la pantalla de Asignación');
+        }
         s.cambiarEstado(cambio.hacia, usuario, cambio.comentario);
         await this.repo.guardar(s);
         return { id, estado: s.estado, version: s.version + 1 };

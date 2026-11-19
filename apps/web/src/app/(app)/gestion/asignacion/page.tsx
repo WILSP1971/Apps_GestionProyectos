@@ -1,8 +1,18 @@
 import type { Metadata } from 'next';
-import { EnConstruccion } from '@/componentes/layout/en-construccion';
+import { Suspense } from 'react';
+import { Encabezado } from '@/componentes/layout/encabezado';
+import { PanelAsignacion } from '@/modulos/asignacion/ui/panel-asignacion';
 
-export const metadata: Metadata = { title: 'Asignación de grupo de trabajo / ingenieros' };
+export const metadata: Metadata = { title: 'Asignación' };
 
-export default function PaginaGestionAsignacion() {
-  return <EnConstruccion titulo="Asignación de grupo de trabajo / ingenieros" sprint="Sprint 5" contenido={["Solicitudes aprobadas por asignar", "Carga de trabajo y tecnologías por ingeniero", "Asignación a grupos (Backend, Frontend, QA) e ingenieros"]} />;
+export default function PaginaAsignacion() {
+  return (
+    <>
+      <Encabezado antetitulo="Gestión" titulo="Asignación de grupo de trabajo / ingenieros"
+        descripcion="Elige el equipo según tecnologías y carga de trabajo. Los recomendados aparecen primero." />
+      <Suspense>
+        <PanelAsignacion />
+      </Suspense>
+    </>
+  );
 }

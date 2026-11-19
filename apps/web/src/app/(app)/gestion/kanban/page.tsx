@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
-import { EnConstruccion } from '@/componentes/layout/en-construccion';
+import { Encabezado } from '@/componentes/layout/encabezado';
+import { TableroKanban } from '@/modulos/kanban/ui/tablero-kanban';
 
 export const metadata: Metadata = { title: 'Kanban por departamentos' };
 
 export default function PaginaGestionKanban() {
-  return <EnConstruccion titulo="Kanban por departamentos" sprint="Sprint 5" contenido={["Columnas por estado y color por departamento", "Arrastrar y soltar con validación de la máquina de estados", "Asignación cross-departamento"]} />;
+  return (
+    <>
+      <Encabezado antetitulo="Gestión" titulo="Kanban por departamentos"
+        descripcion="Arrastra una tarjeta a otra columna para cambiar su estado. Solo se iluminan las columnas permitidas para tu rol." />
+      <TableroKanban />
+    </>
+  );
 }

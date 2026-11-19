@@ -102,6 +102,9 @@ export async function cambiarEstado(id: string, hacia: EstadoSolicitud, actor: A
     if (!regla) throw new ErrorNegocio(`No puede pasar de ${ETIQUETA_ESTADO[s.estado]} a ${ETIQUETA_ESTADO[hacia]}`);
     if (regla.requiereComentario && !comentario?.trim()) throw new ErrorNegocio('Esta acción requiere un comentario');
     if (hacia === 'ENVIADA' && s.criterios.length === 0) throw new ErrorNegocio('Agregue al menos un criterio de aceptación');
+    if (hacia === 'ASIGNADA' && s.asignados.length === 0) {
+      throw new ErrorNegocio('Elige el equipo desde la pantalla de Asignación');
+    }
     if (hacia === 'CERRADA' && s.criterios.some((c) => !c.cumplido)) {
       throw new ErrorNegocio('Todos los criterios de aceptación deben estar cumplidos para cerrar');
     }

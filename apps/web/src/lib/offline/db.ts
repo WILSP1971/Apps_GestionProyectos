@@ -11,8 +11,10 @@ import type {
 export type EntradaHistorial = EntradaHistorialSync;
 
 export interface Asignado {
+  usuarioId?: string | null;
   nombre: string;
   grupo: string;
+  rol?: string;
 }
 
 export interface SolicitudLocal {
@@ -27,6 +29,7 @@ export interface SolicitudLocal {
   estado: EstadoSolicitud;
   avancePct: number;
   departamento: string;
+  departamentoColor?: string;
   solicitanteId: string;
   solicitanteNombre: string;
   fechaDeseada?: string;

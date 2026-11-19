@@ -15,7 +15,7 @@ const SELECT_SOLICITUD = `
 SELECT s.id, s.codigo, s.titulo, s.descripcion,
        coalesce(s.objetivos, '') AS objetivos, coalesce(s.justificacion, '') AS justificacion,
        s.tipo, s.prioridad, s.estado, s.avance_pct::float8 AS "avancePct",
-       d.nombre AS departamento, s.solicitante_id AS "solicitanteId", u.nombre_completo AS "solicitanteNombre",
+       d.nombre AS departamento, d.color_hex AS "departamentoColor", s.solicitante_id AS "solicitanteId", u.nombre_completo AS "solicitanteNombre",
        to_char(s.fecha_deseada, 'YYYY-MM-DD') AS "fechaDeseada",
        s.version, s.creado_en AS "creadoEn", s.actualizado_en AS "actualizadoEn", s.eliminado,
        coalesce((SELECT array_agg(t.nombre ORDER BY t.nombre)
@@ -30,7 +30,8 @@ SELECT s.id, s.codigo, s.titulo, s.descripcion,
                                                    'comentario', h.comentario, 'fecha', h.fecha) ORDER BY h.fecha, h.id)
                    FROM gestion.historial_estados h LEFT JOIN gestion.usuarios uh ON uh.id = h.usuario_id
                   WHERE h.solicitud_id = s.id), '[]') AS historial,
-       coalesce((SELECT json_agg(json_build_object('nombre', coalesce(ua.nombre_completo, g.nombre),
+       coalesce((SELECT json_agg(json_build_object('usuarioId', a.usuario_id, 'rol', a.rol_en_solicitud,
+                                                   'nombre', coalesce(ua.nombre_completo, g.nombre),
                                                    'grupo', coalesce(g.nombre,
                                                      (SELECT min(gu.nombre) FROM gestion.grupo_miembros gm
                                                         JOIN gestion.grupos_trabajo gu ON gu.id = gm.grupo_id
