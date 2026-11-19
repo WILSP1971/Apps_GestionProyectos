@@ -83,7 +83,9 @@ como_app "GIT_SHA=\$(git rev-parse --short HEAD 2>/dev/null || date +%s) NODE_OP
 # El servidor standalone de Next.js necesita los estáticos a su lado
 WEB_SA="$APP/apps/web/.next/standalone/apps/web"
 [[ -f "$WEB_SA/server.js" ]] || error "No se generó $WEB_SA/server.js (revise output: 'standalone' en next.config.ts)"
-como_app "rm -rf '$WEB_SA/public' '$WEB_SA/.next/static' && cp -r apps/web/public '$WEB_SA/public' && mkdir -p '$WEB_SA/.next' && cp -r apps/web/.next/static '$WEB_SA/.next/static'"
+# Los archivos estáticos se FUSIONAN (no se borran los anteriores): las pestañas abiertas y el
+# Service Worker con la versión vieja siguen encontrando su CSS/JS mientras se recargan.
+como_app "rm -rf '$WEB_SA/public' && cp -r apps/web/public '$WEB_SA/public' && mkdir -p '$WEB_SA/.next/static' && cp -r apps/web/.next/static/. '$WEB_SA/.next/static/'"
 ok "Compilación lista"
 
 paso "5/7 Servicio de analítica (Python)"
