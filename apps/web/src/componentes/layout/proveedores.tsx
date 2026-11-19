@@ -7,6 +7,9 @@ import type { UsuarioSesion } from '@/lib/sesion';
 import { prepararBaseLocal, type ConflictoLocal } from '@/lib/offline/db';
 import { EVENTO_CONFLICTO, motorSync } from '@/lib/offline/sync/motor-sync';
 import { precalentarPaginas } from '@/lib/offline/precalentar';
+import { establecerModoDemo } from '@/lib/modo';
+import { EVENTO_NOTIFICACION, tiempoReal } from '@/lib/tiempo-real';
+import type { EventoNotificacion } from '@sierraflow/contratos';
 import { configurarCasosUso } from '@/modulos/solicitudes/aplicacion/casos-uso';
 import { sembrarDemoSiVacio } from '@/modulos/solicitudes/infraestructura/datos-demo';
 
@@ -40,6 +43,7 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
 
   useEffect(() => {
     configurarCasosUso({ modoDemo });
+    establecerModoDemo(modoDemo);
     let activo = true;
 
     (async () => {
@@ -56,6 +60,7 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
         await sembrarDemoSiVacio(usuario.id, usuario.nombre);
       } else {
         motorSync.iniciar();
+        tiempoReal.iniciar(); // SSE: notificaciones y cambios de otros usuarios al instante
       }
       // Deja en caché las pantallas principales para poder abrirlas sin conexión
       precalentarPaginas();
@@ -72,10 +77,20 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
     };
     window.addEventListener(EVENTO_CONFLICTO, alConflicto);
 
+    const alNotificar = (e: Event) => {
+      const n = (e as CustomEvent<EventoNotificacion>).detail;
+      if (!n) return;
+      const mostrar = { EXITO: toast.success, ALERTA: toast.warning, CRITICA: toast.error, INFO: toast.info }[n.severidad] ?? toast;
+      mostrar(n.titulo, { description: n.mensaje, action: { label: 'Ver', onClick: () => location.assign(n.enlace) } });
+    };
+    window.addEventListener(EVENTO_NOTIFICACION, alNotificar);
+
     return () => {
       activo = false;
       window.removeEventListener(EVENTO_CONFLICTO, alConflicto);
+      window.removeEventListener(EVENTO_NOTIFICACION, alNotificar);
       motorSync.detener();
+      tiempoReal.detener();
     };
   }, [modoDemo, usuario.id, usuario.nombre]);
 

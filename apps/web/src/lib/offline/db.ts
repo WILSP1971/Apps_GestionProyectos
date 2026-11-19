@@ -64,7 +64,7 @@ export interface NotificacionLocal {
 
 export interface OperacionPendiente {
   idOperacion: string;
-  entidad: 'solicitud' | 'comentario';
+  entidad: 'solicitud' | 'comentario' | 'notificacion';
   tipo: TipoOperacion;
   entidadId: string;
   payload: unknown;

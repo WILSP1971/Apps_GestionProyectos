@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: { default: 'SierraFlow', template: '%s · SierraFlow' },
   description: 'Gestión y Dirección de Proyectos — Sierra Innova',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/icono.svg' },
+  icons: { icon: '/icono.svg', apple: '/iconos/apple-touch-icon.png' },
 };
 
 export const viewport: Viewport = { themeColor: '#08161d' };

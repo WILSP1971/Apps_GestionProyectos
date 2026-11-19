@@ -15,5 +15,5 @@ export default MODO_DEMO
     });
 
 export const config = {
-  matcher: ['/((?!login|offline|api/auth|_next/static|_next/image|manifest.webmanifest|icono.svg|sw.js|swe-worker|favicon.ico).*)'],
+  matcher: ['/((?!login|offline|api/auth|_next/static|_next/image|manifest.webmanifest|icono.svg|iconos|sw.js|swe-worker|favicon.ico).*)'],
 };

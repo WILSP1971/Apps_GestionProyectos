@@ -8,15 +8,15 @@ import type { EstadoSolicitud } from './estados';
  *  - pull: el cliente pide los cambios posteriores a sus cursores (seq_cambio por colección).
  */
 
-export const ENTIDADES_SYNC = ['solicitud', 'comentario'] as const;
-export const TIPOS_OPERACION = ['crear', 'cambiar_estado', 'marcar_criterio', 'comentar'] as const;
+export const ENTIDADES_SYNC = ['solicitud', 'comentario', 'notificacion'] as const;
+export const TIPOS_OPERACION = ['crear', 'cambiar_estado', 'marcar_criterio', 'comentar', 'leer_notificacion'] as const;
 export type TipoOperacion = (typeof TIPOS_OPERACION)[number];
 
 export const esquemaOperacionSync = z.object({
   idOperacion: z.string().uuid(),                 // idempotencia: el mismo id nunca se aplica dos veces
   entidad: z.enum(ENTIDADES_SYNC),
   tipo: z.enum(TIPOS_OPERACION),
-  entidadId: z.string().uuid(),                   // id de la solicitud afectada
+  entidadId: z.string().uuid(),                   // id de la solicitud afectada (o de la notificación)
   payload: z.unknown(),
   versionBase: z.number().int().min(0).optional(),// versión que conocía el cliente (0 = creada sin conexión)
   creadoEn: z.number().optional(),

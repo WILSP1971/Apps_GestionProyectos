@@ -53,7 +53,7 @@ export class ServicioSincronizacion {
       try {
         resultado = await enTransaccion(u.id, async () => {
           await this.aplicar(op, u, versiones);
-          const [solicitud] = await this.lectura.solicitudesPorIds([op.entidadId], u);
+          const [solicitud] = op.entidad === 'notificacion' ? [] : await this.lectura.solicitudesPorIds([op.entidadId], u);
           const r: ResultadoOperacion = { idOperacion: op.idOperacion, estado: 'ok', solicitud: solicitud ?? null };
           await this.registrar(op, peticion.dispositivoId, u, r);
           if (solicitud) versiones.registrar(op.entidadId, op.versionBase, solicitud.version);
@@ -97,11 +97,19 @@ export class ServicioSincronizacion {
         await this.comentar.ejecutar(op.entidadId, p, u);
         return;
       }
+      case 'leer_notificacion': {
+        await db().query(
+          `UPDATE gestion.notificaciones SET leida = true, fecha_lectura = coalesce(fecha_lectura, now())
+            WHERE id = $1 AND usuario_id = $2`, [op.entidadId, u.id]);
+        return;
+      }
     }
   }
 
   private async resultadoDeError(op: OperacionSync, e: unknown, u: UsuarioActual): Promise<ResultadoOperacion> {
-    const vigente = async () => (await this.lectura.solicitudesPorIds([op.entidadId], u).catch(() => []))[0] ?? null;
+    const vigente = async () => op.entidad === 'notificacion'
+      ? null
+      : (await this.lectura.solicitudesPorIds([op.entidadId], u).catch(() => []))[0] ?? null;
     if (e instanceof ConflictoConcurrencia) {
       return { idOperacion: op.idOperacion, estado: 'conflicto', codigo: e.codigo, mensaje: e.message, solicitud: await vigente() };
     }

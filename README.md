@@ -85,6 +85,12 @@ Endpoints iniciales:
 | POST | `/api/solicitudes/:id/comentarios` | Comentar en el hilo de la solicitud |
 | POST | `/api/sync/push` | Aplica en orden la bandeja de salida del dispositivo (idempotente) |
 | GET | `/api/sync/pull` | Cambios posteriores a los cursores `solicitudes`, `comentarios`, `notificaciones` |
+| GET | `/api/eventos/stream?token=` | Tiempo real (SSE): `notificacion`, `cambios`, `latido` |
+| GET | `/api/notificaciones` | Últimas notificaciones del usuario |
+| PATCH | `/api/notificaciones/:id/leida` · POST `/api/notificaciones/leer-todas` | Marcar como leídas |
+| GET / PUT | `/api/notificaciones/preferencias` | Canales (correo, push) por tipo de aviso |
+| POST / DELETE | `/api/notificaciones/push/suscripciones` | Suscribir / quitar este navegador a Web Push |
+| POST | `/api/notificaciones/prueba` | Envía una notificación de prueba por todos los canales |
 
 ## 5. Inicio de sesión real (OAuth 2.0 / OIDC)
 
@@ -145,7 +151,7 @@ cd services/analitica && pytest -q
 - [x] **Sprint 1** – Identidad OAuth 2.0 (API) + login web + layout y tema
 - [x] **Sprint 2** – Solicitudes: asistente de 4 pasos, Mis solicitudes, detalle con línea de vida, comentarios
 - [x] **Sprint 3** – Motor de sincronización offline (push/pull) + Service Worker (Serwist)
-- [ ] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
+- [x] **Sprint 4** – Notificaciones en tiempo real (outbox → SSE, Web Push, email)
 - [ ] **Sprint 5** – Asignación por carga de trabajo y Kanban por departamentos
 - [ ] **Sprint 6** – Evaluación/calificación y reportes
 - [ ] **Sprint 7** – PM Suite (Gantt, riesgos, deuda técnica, ROI) y endurecimiento

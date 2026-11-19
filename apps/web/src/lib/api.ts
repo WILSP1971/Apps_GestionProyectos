@@ -21,7 +21,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 let cacheToken: { token: string; expira: number } | null = null;
 let enVuelo: Promise<string> | null = null;
 
-async function obtenerToken(forzar = false): Promise<string> {
+export async function obtenerToken(forzar = false): Promise<string> {
   if (!forzar && cacheToken && Date.now() < cacheToken.expira - 30_000) return cacheToken.token;
   // Una sola petición de token a la vez, aunque haya varias llamadas concurrentes
   enVuelo ??= (async () => {

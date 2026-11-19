@@ -84,3 +84,51 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// ---------------------------------------------------------------------
+// Web Push: llega aunque SierraFlow esté cerrado
+// ---------------------------------------------------------------------
+interface DatosPush {
+  id?: string;
+  titulo?: string;
+  mensaje?: string;
+  enlace?: string;
+  severidad?: 'INFO' | 'EXITO' | 'ALERTA' | 'CRITICA';
+}
+
+self.addEventListener('push', (evento) => {
+  let datos: DatosPush = {};
+  try {
+    datos = (evento.data?.json() as DatosPush) ?? {};
+  } catch {
+    datos = { mensaje: evento.data?.text() };
+  }
+  evento.waitUntil(
+    self.registration.showNotification(datos.titulo ?? 'SierraFlow', {
+      body: datos.mensaje ?? '',
+      icon: '/iconos/icono-192.png',
+      badge: '/iconos/insignia-96.png',
+      tag: datos.id,
+      data: { enlace: datos.enlace ?? '/dashboard' },
+      requireInteraction: datos.severidad === 'CRITICA',
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close();
+  const destino = new URL((evento.notification.data as { enlace?: string } | null)?.enlace ?? '/dashboard', self.location.origin).href;
+  evento.waitUntil(
+    (async () => {
+      // Si SierraFlow ya está abierto, se reutiliza esa pestaña
+      const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const ventana of ventanas) {
+        if (new URL(ventana.url).origin === self.location.origin) {
+          await ventana.navigate(destino).catch(() => undefined);
+          return ventana.focus();
+        }
+      }
+      return self.clients.openWindow(destino);
+    })(),
+  );
+});

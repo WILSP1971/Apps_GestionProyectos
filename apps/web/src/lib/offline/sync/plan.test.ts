@@ -76,3 +76,11 @@ test('operaciones de otras solicitudes no se rebasan', () => {
   assert.deepEqual(p.rebasarOps, []);
   assert.equal(p.guardarSolicitudes.length, 1);
 });
+
+test('leer una notificación: el servidor confirma sin solicitud y la operación se elimina', () => {
+  const leer: OperacionPendiente = { idOperacion: 'n1', entidad: 'notificacion', tipo: 'leer_notificacion', entidadId: 'notif-1', payload: {}, creadoEn: 0, intentos: 0 };
+  const p = planificarResultados([leer], [{ idOperacion: 'n1', estado: 'ok', solicitud: null }]);
+  assert.deepEqual(p.eliminarOps, ['n1']);
+  assert.deepEqual(p.guardarSolicitudes, []);
+  assert.deepEqual(p.conflictos, []);
+});

@@ -200,6 +200,44 @@ SELECT u.id, r.id FROM gestion.usuarios u, gestion.roles r
 ON CONFLICT DO NOTHING;"
 ```
 
+## Paso 6b · Notificaciones por correo y push (Sprint 4)
+
+**Push (navegador y celular):** no requiere configuración. Al desplegar, `desplegar.sh` genera las
+claves VAPID en el `.env`. Cada usuario las activa en **Configuración → Activar en este equipo**.
+
+**Correo:** requiere una cuenta SMTP. Con Gmail:
+
+1. En la cuenta de Google que enviará los correos activa la **verificación en dos pasos**.
+2. Entra a <https://myaccount.google.com/apppasswords>, crea una contraseña de aplicación llamada
+   "SierraFlow" y copia los 16 caracteres.
+3. Edita el `.env` (por ejemplo con el método de `scp` descrito abajo) y completa:
+
+```dotenv
+SMTP_HOST=smtp.gmail.com
+SMTP_PUERTO=587
+SMTP_USUARIO=notificaciones.sierrainnova@gmail.com
+SMTP_CLAVE=abcdefghijklmnop
+SMTP_REMITENTE="SierraFlow" <notificaciones.sierrainnova@gmail.com>
+```
+
+Con el correo de tu hosting o Microsoft 365 usa su servidor SMTP (por ejemplo `smtp.office365.com`,
+puerto 587). Aplica con `sudo bash ~/proyectos/Apps_GestionProyectos/deploy/desplegar.sh --sin-git` y
+prueba desde **Configuración → Enviar prueba**.
+
+### Editar el `.env` desde tu PC
+
+```powershell
+scp swarm@sierrainnova.tech:/opt/sierraflow/.env D:\DeveloperAPPS\sierraflow.env      # descargar
+# … editar con VS Code …
+scp D:\DeveloperAPPS\sierraflow.env swarm@sierrainnova.tech:~/sierraflow.env          # subir
+```
+
+```bash
+sudo install -o root -g swarm -m 640 ~/sierraflow.env /opt/sierraflow/.env
+sudo sed -i 's/\r$//' /opt/sierraflow/.env && rm ~/sierraflow.env
+sudo bash ~/proyectos/Apps_GestionProyectos/deploy/desplegar.sh --sin-git
+```
+
 ## Paso 7 · Publicar actualizaciones
 
 En tu PC: `git push`. En el servidor:

@@ -10,6 +10,7 @@ import { dbLocal, type EstadoSync } from '@/lib/offline/db';
 import { motorSync } from '@/lib/offline/sync/motor-sync';
 import { cn, haceTiempo } from '@/lib/utils';
 import { reiniciarDemo } from '@/modulos/solicitudes/infraestructura/datos-demo';
+import { marcarNotificacionLeida, marcarTodasLeidas } from '@/modulos/notificaciones/aplicacion/casos-uso';
 import { Avatar, Boton } from '@/componentes/ui/primitivos';
 import { useUsuario } from './proveedores';
 
@@ -123,7 +124,7 @@ function Campana() {
             <p className="text-sm font-semibold">Notificaciones</p>
             {noLeidas > 0 && (
               <button className="text-xs text-primario hover:underline"
-                onClick={() => dbLocal.notificaciones.where('leida').equals(0).modify({ leida: 1 })}>
+                onClick={() => marcarTodasLeidas()}>
                 Marcar todo como leído
               </button>
             )}
@@ -133,7 +134,7 @@ function Campana() {
             {ultimas.map((n) => (
               <li key={n.id}>
                 <button
-                  onClick={async () => { await dbLocal.notificaciones.update(n.id, { leida: 1 }); setAbierta(false); router.push(n.enlace); }}
+                  onClick={async () => { await marcarNotificacionLeida(n.id); setAbierta(false); router.push(n.enlace); }}
                   className={cn('flex w-full gap-3 px-4 py-3 text-left transition hover:bg-panel-2', !n.leida && 'bg-primario/5')}>
                   <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', n.leida ? 'bg-transparent' : color[n.severidad])} />
                   <span className="min-w-0">

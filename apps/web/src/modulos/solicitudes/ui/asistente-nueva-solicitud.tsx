@@ -198,7 +198,12 @@ export function AsistenteNuevaSolicitud() {
   // Restaura el borrador guardado en este equipo (sobrevive a recargas y a la falta de red)
   useEffect(() => {
     dbLocal.meta.get(CLAVE_BORRADOR).then((b) => {
-      if (b?.valor) { form.reset(b.valor as Formulario); toast.info('Se restauró tu borrador sin enviar'); }
+      const v = b?.valor as Partial<Formulario> | undefined;
+      const tieneContenido = !!(v?.titulo?.trim() || v?.descripcion?.trim() || v?.objetivos?.trim() || v?.criterios?.length);
+      if (v && tieneContenido) {
+        form.reset({ ...VALORES_INICIALES, ...v });
+        toast.info('Se restauró tu borrador sin enviar');
+      }
     });
   }, [form]);
 

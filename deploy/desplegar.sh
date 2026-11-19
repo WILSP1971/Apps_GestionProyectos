@@ -40,6 +40,37 @@ else
 fi
 ok "Dependencias instaladas"
 
+paso "2b/7 Configuración de notificaciones (.env)"
+# Claves VAPID para Web Push: se generan una sola vez y se guardan en el .env
+if [[ -z "$(leer_env VAPID_PUBLICA)" || -z "$(leer_env VAPID_PRIVADA)" ]]; then
+  CLAVES=$(como_app "cd apps/api && node -e \"const w=require('web-push');const k=w.generateVAPIDKeys();process.stdout.write(k.publicKey+' '+k.privateKey)\"")
+  [[ "$CLAVES" == *" "* ]] || error "No se pudieron generar las claves VAPID (¿se instaló web-push en apps/api?)"
+  sed -i '/^VAPID_PUBLICA=/d;/^VAPID_PRIVADA=/d' "$ENV_FILE"
+  printf '\n# --- Notificaciones push (VAPID) · generadas por desplegar.sh el %s ---\nVAPID_PUBLICA=%s\nVAPID_PRIVADA=%s\n' \
+    "$(date -I)" "${CLAVES% *}" "${CLAVES#* }" >> "$ENV_FILE"
+  ok "Claves VAPID generadas"
+else
+  ok "Claves VAPID presentes"
+fi
+if ! grep -qE '^VAPID_CONTACTO=' "$ENV_FILE"; then
+  CONTACTO=$(leer_env ADMIN_EMAILS | cut -d, -f1 | tr -d ' ')
+  echo "VAPID_CONTACTO=mailto:${CONTACTO:-soporte@sierrainnova.tech}" >> "$ENV_FILE"
+fi
+if ! grep -qE '^SMTP_HOST=' "$ENV_FILE"; then
+  cat >> "$ENV_FILE" <<'EOF'
+
+# --- Correo SMTP para notificaciones (SMTP_HOST vacío = correo desactivado) ---
+# Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PUERTO=587, SMTP_USUARIO=tu@gmail.com, SMTP_CLAVE=<contraseña de aplicación>
+SMTP_HOST=
+SMTP_PUERTO=587
+SMTP_USUARIO=
+SMTP_CLAVE=
+SMTP_REMITENTE=
+EOF
+  ok "Variables SMTP agregadas al .env (vacías: correo desactivado hasta configurarlo)"
+fi
+[[ -n "$(leer_env SMTP_HOST)" ]] && ok "Correo SMTP: $(leer_env SMTP_HOST)" || aviso "Correo SMTP sin configurar: solo habrá notificaciones en la app y push"
+
 paso "3/7 Migraciones de base de datos"
 como_app "DATABASE_URL_OWNER='$(leer_env DATABASE_URL_OWNER)' bash database/migrar.sh"
 

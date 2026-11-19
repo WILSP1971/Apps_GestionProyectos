@@ -316,6 +316,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 15 2 * * * root bash ${APP}/deploy/backup.sh >> /var/log/sierraflow/backup.log 2>&1
 # Limpieza de operaciones de sincronización con más de 30 días
 40 3 * * * postgres psql -d ${BD} -qtAc "SELECT gestion.fn_purgar_sync_operaciones(30)" >> /var/log/sierraflow/mantenimiento.log 2>&1
+# Notificaciones leídas con más de 180 días
+45 3 * * 0 postgres psql -d ${BD} -qtAc "SELECT gestion.fn_purgar_notificaciones(180)" >> /var/log/sierraflow/mantenimiento.log 2>&1
 EOF
 ok "Copia diaria en /var/backups/sierraflow (2:15 a. m.)"
 
