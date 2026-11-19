@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { CambioUsuario, CatalogosAdmin, UsuarioAdmin } from '@sierraflow/contratos';
+import type { CambioUsuario, NuevoUsuario, CatalogosAdmin, UsuarioAdmin } from '@sierraflow/contratos';
+import { ErrorDominio } from '../../../compartido/dominio/errores';
 import { db } from '../../../compartido/infraestructura/base-datos';
 
 @Injectable()
@@ -17,7 +18,7 @@ export class RepositorioAdmin {
   async usuarios(id?: string): Promise<UsuarioAdmin[]> {
     const { rows } = await db().query(
       `SELECT u.id, u.email, u.nombre_completo AS nombre, u.cargo, u.departamento_id AS "departamentoId", u.activo,
-              u.ultimo_acceso AS "ultimoAcceso",
+              u.ultimo_acceso AS "ultimoAcceso", (u.proveedor_oauth = 'invitado') AS pendiente,
               coalesce((SELECT array_agg(r.codigo ORDER BY r.id) FROM gestion.usuario_roles ur
                           JOIN gestion.roles r ON r.id = ur.rol_id WHERE ur.usuario_id = u.id), '{}') AS roles,
               coalesce((SELECT array_agg(gm.grupo_id) FROM gestion.grupo_miembros gm WHERE gm.usuario_id = u.id), '{}') AS grupos,
@@ -38,7 +39,36 @@ export class RepositorioAdmin {
     return r.n;
   }
 
+  /** Alta previa: el usuario queda vinculado a su cuenta real la primera vez que inicia sesión con ese correo. */
+  async crear(n: NuevoUsuario): Promise<string> {
+    const { rows: [u] } = await db().query(
+      `INSERT INTO gestion.usuarios(email, nombre_completo, cargo, departamento_id, proveedor_oauth, sujeto_oauth)
+       VALUES ($1, $2, $3, $4, 'invitado', 'invitado:' || $1)
+       ON CONFLICT (email) DO NOTHING
+       RETURNING id`,
+      [n.email, n.nombre, n.cargo ?? null, n.departamentoId ?? null]);
+    if (!u) throw new ErrorDominio('CORREO_EXISTENTE', `Ya existe un usuario con el correo ${n.email}`);
+    await this.actualizar(u.id, { roles: n.roles, grupos: n.grupos, tecnologias: n.tecnologias, capacidadHoras: n.capacidadHoras });
+    return u.id;
+  }
+
   async actualizar(id: string, c: CambioUsuario): Promise<void> {
+    if (c.email !== undefined || c.nombre !== undefined) {
+      if (c.email !== undefined) {
+        const { rows: [p] } = await db().query(`SELECT proveedor_oauth = 'invitado' AS pendiente, email FROM gestion.usuarios WHERE id = $1`, [id]);
+        if (p && !p.pendiente && p.email !== c.email) {
+          throw new ErrorDominio('CORREO_FIJO', 'El correo solo se puede cambiar mientras el usuario no haya iniciado sesión');
+        }
+        const { rowCount } = await db().query(`SELECT 1 FROM gestion.usuarios WHERE email = $1 AND id <> $2`, [c.email, id]);
+        if (rowCount) throw new ErrorDominio('CORREO_EXISTENTE', `Ya existe un usuario con el correo ${c.email}`);
+      }
+      await db().query(
+        `UPDATE gestion.usuarios
+            SET email = coalesce($2, email),
+                sujeto_oauth = CASE WHEN proveedor_oauth = 'invitado' AND $2::text IS NOT NULL THEN 'invitado:' || $2 ELSE sujeto_oauth END,
+                nombre_completo = coalesce($3, nombre_completo)
+          WHERE id = $1`, [id, c.email ?? null, c.nombre ?? null]);
+    }
     if (c.cargo !== undefined || c.departamentoId !== undefined || c.activo !== undefined) {
       await db().query(
         `UPDATE gestion.usuarios

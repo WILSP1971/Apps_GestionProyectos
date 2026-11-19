@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Rol } from '../../../compartido/dominio/usuario-actual';
 import { db } from '../../../compartido/infraestructura/base-datos';
 import { IdentidadExterna } from './verificador-oidc';
@@ -22,12 +22,20 @@ const correosAdmin = () =>
 export class RepositorioUsuarios {
   /** Crea el usuario en su primer inicio de sesión o actualiza sus datos de perfil. */
   async registrarAcceso(ext: IdentidadExterna): Promise<PerfilUsuario> {
+    // SOLO_USUARIOS_REGISTRADOS=true: solo entran los correos que un administrador agregó (y ADMIN_EMAILS)
+    if (process.env.SOLO_USUARIOS_REGISTRADOS === 'true' && !correosAdmin().includes(ext.email)) {
+      const { rowCount } = await db().query(`SELECT 1 FROM gestion.usuarios WHERE email = $1 AND NOT eliminado`, [ext.email]);
+      if (!rowCount) throw new UnauthorizedException('Tu correo no está registrado en SierraFlow. Pide acceso al administrador.');
+    }
     const { rows: [u] } = await db().query(
       `INSERT INTO gestion.usuarios(email, nombre_completo, avatar_url, proveedor_oauth, sujeto_oauth, departamento_id, ultimo_acceso)
        VALUES ($1, $2, $3, $4, $5,
                (SELECT id FROM gestion.departamentos WHERE codigo = $6), now())
        ON CONFLICT (email) DO UPDATE
          SET nombre_completo = EXCLUDED.nombre_completo,
+             -- Usuario agregado por un administrador: en su primer acceso se vincula a la cuenta real
+             proveedor_oauth = CASE WHEN gestion.usuarios.proveedor_oauth = 'invitado' THEN EXCLUDED.proveedor_oauth ELSE gestion.usuarios.proveedor_oauth END,
+             sujeto_oauth    = CASE WHEN gestion.usuarios.proveedor_oauth = 'invitado' THEN EXCLUDED.sujeto_oauth ELSE gestion.usuarios.sujeto_oauth END,
              avatar_url      = coalesce(EXCLUDED.avatar_url, gestion.usuarios.avatar_url),
              ultimo_acceso   = now()
        RETURNING id, (xmax = 0) AS es_nuevo`,

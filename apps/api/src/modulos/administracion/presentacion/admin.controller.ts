@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
-import { esquemaCambioUsuario, type CambioUsuario } from '@sierraflow/contratos';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { esquemaCambioUsuario, esquemaNuevoUsuario, type CambioUsuario, type NuevoUsuario } from '@sierraflow/contratos';
 import { ErrorDominio, NoEncontrado } from '../../../compartido/dominio/errores';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { Roles, Usuario } from '../../../compartido/presentacion/decoradores';
@@ -24,6 +24,20 @@ export class AdminController {
   @Get('usuarios')
   usuarios() {
     return this.repo.usuarios();
+  }
+
+  /**
+   * Agrega un usuario antes de que entre por primera vez (p. ej. ingenieros y programadores).
+   * Queda "pendiente" y se vincula a su cuenta Google/Microsoft cuando inicia sesión con ese correo,
+   * conservando los roles, grupos y tecnologías definidos aquí.
+   */
+  @Post('usuarios')
+  crear(@Body(new ZodPipe(esquemaNuevoUsuario)) dto: NuevoUsuario, @Usuario() u: UsuarioActual) {
+    return enTransaccion(u.id, async () => {
+      const id = await this.repo.crear(dto);
+      const [r] = await this.repo.usuarios(id);
+      return r;
+    });
   }
 
   /** Los cambios de rol se reflejan en el siguiente token (máx. 15 min) o al volver a iniciar sesión. */

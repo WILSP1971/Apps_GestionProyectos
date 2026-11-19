@@ -150,7 +150,10 @@ Endpoints nuevos: `GET /api/asignacion/ingenieros`, `GET /api/asignacion/grupos`
 `GET /api/asignacion/solicitudes/:id/equipo`, `PUT /api/asignacion/solicitudes/:id`,
 `GET /api/admin/catalogos`, `GET /api/admin/usuarios`, `PATCH /api/admin/usuarios/:id`.
 
-Para que aparezcan ingenieros en la asignación, un ADMIN les da el rol **INGENIERO**, sus grupos,
+Para sumar ingenieros o programadores, un ADMIN usa **Agregar usuario** en *Usuarios y equipos* (correo, nombre, roles,
+grupos, tecnologías). Quedan *Pendientes* hasta que entran con “Continuar con Google” usando ese correo; en ese momento
+se vinculan a su cuenta. Con `SOLO_USUARIOS_REGISTRADOS=true` en el `.env` solo pueden entrar los correos agregados así.
+También se puede editar a quien ya entró: para que aparezca en la asignación necesita el rol **INGENIERO**, sus grupos,
 tecnologías y capacidad semanal en *Usuarios y equipos*. La recomendación ordena por tecnologías
 coincidentes, pertenencia al grupo elegido y carga (`apps/web/src/modulos/asignacion/dominio/recomendacion.ts`).
 Al confirmar sobre una solicitud **Aprobada**, pasa a **Asignada** y los nuevos integrantes reciben aviso.

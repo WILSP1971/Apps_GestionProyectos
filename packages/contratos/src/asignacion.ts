@@ -74,9 +74,14 @@ export interface UsuarioAdmin {
   grupos: string[];
   tecnologias: number[];
   capacidadHoras: number;
+  /** Agregado por un administrador y aún no ha iniciado sesión */
+  pendiente: boolean;
 }
 
 export const esquemaCambioUsuario = z.object({
+  /** Solo mientras el usuario está pendiente (aún no ha iniciado sesión): corrige un correo mal escrito */
+  email: z.string().trim().toLowerCase().email('Correo no válido').max(200).optional(),
+  nombre: z.string().trim().min(3, 'Mínimo 3 caracteres').max(160).optional(),
   cargo: z.string().trim().max(120).nullable().optional(),
   departamentoId: z.string().uuid().nullable().optional(),
   activo: z.boolean().optional(),
@@ -86,3 +91,11 @@ export const esquemaCambioUsuario = z.object({
   capacidadHoras: z.number().min(1).max(80).optional(),
 });
 export type CambioUsuario = z.infer<typeof esquemaCambioUsuario>;
+
+/** Alta de un usuario por el administrador: queda "pendiente" hasta que entra con su cuenta (Google/Microsoft). */
+export const esquemaNuevoUsuario = esquemaCambioUsuario.extend({
+  email: z.string().trim().toLowerCase().email('Correo no válido').max(200),
+  nombre: z.string().trim().min(3, 'Mínimo 3 caracteres').max(160),
+  roles: z.array(z.enum(ROLES)).min(1, 'Elige al menos un rol').max(ROLES.length),
+}).omit({ activo: true });
+export type NuevoUsuario = z.infer<typeof esquemaNuevoUsuario>;
