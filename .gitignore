@@ -10,8 +10,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# Entornos y secretos
+# Entornos y secretos (cualquier copia del .env del servidor: sierraflow.env, produccion.env, ...)
 .env
+*.env
 .env.local
 .env.*.local
 .env.production

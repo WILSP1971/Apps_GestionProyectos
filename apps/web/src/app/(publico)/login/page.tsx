@@ -16,8 +16,8 @@ const ICONOS: Record<string, React.ReactNode> = {
   ),
 };
 
-export default async function PaginaLogin({ searchParams }: { searchParams: Promise<{ volver?: string; error?: string }> }) {
-  const { volver = '/dashboard', error } = await searchParams;
+export default async function PaginaLogin({ searchParams }: { searchParams: Promise<{ volver?: string; error?: string; motivo?: string }> }) {
+  const { volver = '/dashboard', error, motivo } = await searchParams;
   const destino = volver.startsWith('/') && !volver.startsWith('//') ? volver : '/dashboard';
 
   return (
@@ -44,7 +44,15 @@ export default async function PaginaLogin({ searchParams }: { searchParams: Prom
           <h2 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h2>
           <p className="mt-1 text-sm text-atenuado">Usa tu cuenta corporativa.</p>
 
-          {error && <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">No fue posible iniciar sesión. Verifica que tu cuenta esté autorizada.</p>}
+          {error && (
+            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p>{error === 'AccessDenied' ? 'Tu cuenta no fue autorizada.' : 'No fue posible iniciar sesión.'}</p>
+              {motivo && <p className="mt-1 text-xs text-red-200">Motivo: {motivo.slice(0, 200)}</p>}
+              {!motivo && error === 'Configuration' && (
+                <p className="mt-1 text-xs text-red-200">Error de configuración del servidor. Revisa los registros: pm2 logs sierraflow-web</p>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 space-y-3">
             {PROVEEDORES_ACTIVOS.map((p) => (
