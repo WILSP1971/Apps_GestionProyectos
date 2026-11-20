@@ -26,8 +26,8 @@ const CUENTA: Seccion = {
   titulo: 'Cuenta',
   items: [
     { href: '/administracion/usuarios', etiqueta: 'Usuarios y equipos', icono: UserCog, roles: ['ADMIN'] },
-    // Director y líder técnico no ven Configuración (el administrador sí)
-    { href: '/configuracion', etiqueta: 'Configuración', icono: Settings, ocultarPara: ['DIRECTOR', 'LIDER'] },
+    // Configuración: solo el administrador de la aplicación
+    { href: '/configuracion', etiqueta: 'Configuración', icono: Settings, roles: ['ADMIN'] },
     { href: '/ayuda', etiqueta: 'Ayuda', icono: HelpCircle },
   ],
 };

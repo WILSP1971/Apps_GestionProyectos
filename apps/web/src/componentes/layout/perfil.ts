@@ -20,6 +20,5 @@ export function perfilDe(roles: readonly Rol[]): Perfil {
  */
 export const creaSolicitudes = (roles: readonly Rol[]) => perfilDe(roles) === 'SOLICITANTE';
 
-/** Configuración: la ven solicitante, ingeniero y administrador; director y líder no (salvo que también sea ADMIN). */
-export const veConfiguracion = (roles: readonly Rol[]) =>
-  roles.includes('ADMIN') || !roles.some((r) => r === 'DIRECTOR' || r === 'LIDER');
+/** Configuración: solo el administrador de la aplicación. */
+export const veConfiguracion = (roles: readonly Rol[]) => roles.includes('ADMIN');

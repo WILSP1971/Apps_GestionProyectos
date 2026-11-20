@@ -261,7 +261,7 @@ Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluaci
 - Gestión ya no tiene *Nueva solicitud* en el menú ni el botón *+ Nueva solicitud*; puede crear solicitudes solo
   dentro de un proyecto. La **Bandeja** muestra las solicitudes recibidas (sin borradores) con resumen por estado,
   filtros, contador de nuevas en el menú y la acción *Tomar en revisión*.
-- **Configuración** no está disponible para director y líder (el administrador sí).
+- **Configuración** es solo para el administrador (no la ven solicitante, ingeniero, líder ni director).
 
 ### Centro de trabajo del ingeniero (Registrar avances)
 
