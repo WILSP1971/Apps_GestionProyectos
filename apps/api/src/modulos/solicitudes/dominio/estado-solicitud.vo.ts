@@ -34,7 +34,7 @@ export const MAQUINA_ESTADOS: Record<EstadoSolicitud, Regla[]> = {
   ASIGNADA: [{ hacia: 'EN_DESARROLLO', roles: ['INGENIERO', 'LIDER'] }],
   EN_DESARROLLO: [{ hacia: 'EN_VALIDACION', roles: ['INGENIERO', 'LIDER'] }],
   EN_VALIDACION: [
-    { hacia: 'EN_DESARROLLO', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR'], requiereComentario: true },
+    { hacia: 'EN_DESARROLLO', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR', 'ADMIN'], requiereComentario: true },
     { hacia: 'CERRADA', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR'] },
   ],
   RECHAZADA: [],

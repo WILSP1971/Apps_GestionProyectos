@@ -41,3 +41,15 @@ test('gantt: escala con margen y posiciones en %', () => {
   assert.ok(Math.abs(p.width - (10 / 16) * 100) < 0.01);
   assert.equal(posicionGantt(null, '2026-06-10', e), null);
 });
+
+test('proyecto: líder, director y administrador regresan a desarrollo desde validación (con motivo)', async () => {
+  const { transicionesProyecto } = await import('../src/proyectos');
+  for (const rol of ['LIDER', 'DIRECTOR', 'ADMIN'] as const) {
+    const r = transicionesProyecto('EN_VALIDACION', [rol]).find((t) => t.hacia === 'EN_EJECUCION');
+    assert.ok(r, `${rol} debe poder regresar a desarrollo`);
+    assert.equal(r!.requiereMotivo, true);
+  }
+  assert.equal(transicionesProyecto('EN_VALIDACION', ['INGENIERO']).length, 0);
+  assert.equal(transicionesProyecto('EN_VALIDACION', ['LIDER']).some((t) => t.hacia === 'CERRADO'), false);
+  assert.equal(transicionesProyecto('CANCELADO', ['ADMIN']).length, 0);
+});

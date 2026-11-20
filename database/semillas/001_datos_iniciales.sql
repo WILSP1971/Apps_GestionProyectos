@@ -52,6 +52,6 @@ INSERT INTO transiciones_estado(desde, hacia, roles_permitidos, requiere_comenta
  ('APROBADA','ASIGNADA',           '{LIDER,DIRECTOR}',             false),
  ('ASIGNADA','EN_DESARROLLO',      '{INGENIERO,LIDER}',            false),
  ('EN_DESARROLLO','EN_VALIDACION', '{INGENIERO,LIDER}',            false),
- ('EN_VALIDACION','EN_DESARROLLO', '{SOLICITANTE,LIDER,DIRECTOR}', true),
+ ('EN_VALIDACION','EN_DESARROLLO', '{SOLICITANTE,LIDER,DIRECTOR,ADMIN}', true),
  ('EN_VALIDACION','CERRADA',       '{SOLICITANTE,LIDER,DIRECTOR}', false)
 ON CONFLICT DO NOTHING;

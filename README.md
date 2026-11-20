@@ -240,6 +240,13 @@ Guion manual de pruebas sin conexión: [`docs/pruebas/E2E_sin_conexion.md`](docs
 | Ingeniero | Dashboard · Mis solicitudes y proyectos · Registrar avances · Reportes (su desempeño) |
 | Líder, Director, Administrador | Dashboard · Proyectos · Solicitudes (nueva, mías, bandeja) · Gestión (asignación, Kanban, evaluación) · Reportes · Cuenta |
 
+**Regresar a desarrollo:** el administrador, el director, el líder y el solicitante pueden regresar a *En desarrollo*
+una solicitud que está *En validación* (botón "Regresar a desarrollo", exige motivo; migración 016).
+Los **proyectos** siguen el mismo ciclo: *Planeación → En ejecución → En validación → Cerrado* (más *En pausa* y
+*Cancelado*). Desde *En validación*, líder, director y administrador pueden **regresar a desarrollo** (En ejecución)
+indicando el motivo; cada cambio queda en el *Historial de estados* del proyecto
+(`MAQUINA_ESTADOS_PROYECTO`, `PATCH /api/proyectos/:id/estado`, migración 017).
+
 Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluacion/mis-tareas`,
 `POST /api/evaluacion/proyectos/:id/tareas`, `GET /api/proyectos/mios`, `GET /analitica/kpis/mi-desempeno`.
 

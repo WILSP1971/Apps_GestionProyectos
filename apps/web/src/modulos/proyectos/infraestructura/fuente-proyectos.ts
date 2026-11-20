@@ -3,6 +3,7 @@ import {
   type CambioDeuda, type CambioTarea, type NuevaTarea, type CambioProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
   type EstadoProyecto, type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type ResumenProyecto, type RiesgoVista,
   type SolicitudDeProyecto, type TareaVista,
+  transicionesProyecto, type CambioEstadoProyecto, type HistorialEstadoProyecto, type Rol,
 } from '@sierraflow/contratos';
 import { apiFetch } from '@/lib/api';
 import { dbLocal, type SolicitudLocal } from '@/lib/offline/db';
@@ -29,6 +30,8 @@ export interface FuenteProyectos {
   crearTareaProyecto(proyectoId: string, datos: NuevaTarea): Promise<TareaVista>;
   actualizarTareaProyecto(id: string, datos: CambioTarea): Promise<TareaVista>;
   eliminarTareaProyecto(id: string, version: number): Promise<void>;
+  /** Ciclo de vida (incluye "Regresar a desarrollo" desde validación, con motivo). */
+  cambiarEstado(id: string, datos: CambioEstadoProyecto, actor: { nombre: string; roles: readonly Rol[] }): Promise<DetalleProyecto>;
 }
 
 export const fuenteApi: FuenteProyectos = {
@@ -49,6 +52,7 @@ export const fuenteApi: FuenteProyectos = {
   crearTareaProyecto: (id, datos) => apiFetch(`/evaluacion/proyectos/${id}/tareas`, { method: 'POST', body: datos }),
   actualizarTareaProyecto: (id, datos) => apiFetch(`/evaluacion/tareas/${id}`, { method: 'PATCH', body: datos }),
   eliminarTareaProyecto: (id, version) => apiFetch(`/evaluacion/tareas/${id}?version=${version}`, { method: 'DELETE' }),
+  cambiarEstado: (id, datos) => apiFetch(`/proyectos/${id}/estado`, { method: 'PATCH', body: datos }),
 };
 
 // ---------------------------------------------------------------------
@@ -62,6 +66,7 @@ interface ProyectoDemo {
   presupuesto: number | null; costoOtros: number; tarifaHora: number | null; beneficioEsperado: number | null;
   moneda: string; version: number; solicitudes: string[]; riesgos: RiesgoVista[]; deuda: DeudaVista[];
   tareasProyecto?: TareaVista[];
+  historialEstados?: HistorialEstadoProyecto[];
 }
 const CLAVE = 'pm:proyectos';
 const hoyIso = (d = 0) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
@@ -138,6 +143,7 @@ async function armar(p: ProyectoDemo): Promise<DetalleProyecto> {
     finanzas: calcularFinanzas({ presupuesto: p.presupuesto, costoOtros: p.costoOtros, tarifaHora: p.tarifaHora, horasReales, horasEstimadas, beneficioEsperado: p.beneficioEsperado }),
     solicitudesDetalle: detalle,
     tareasProyecto: propias,
+    historialEstados: p.historialEstados ?? [],
     riesgos: [...p.riesgos].sort((a, b) => b.exposicion - a.exposicion),
     deuda: p.deuda,
     permisos: { editar: true },
@@ -285,4 +291,18 @@ export const fuenteDemo: FuenteProyectos = {
     p.tareasProyecto = p.tareasProyecto!.filter((t) => t.id !== id);
     await guardar(lista);
   },
+  async cambiarEstado(id, c, actor) {
+    const { lista, p } = await buscar((x) => x.id === id);
+    if (p.version !== c.version) throw new Error('El proyecto cambió; recarga e intenta de nuevo');
+    const regla = transicionesProyecto(p.estado, actor.roles).find((r) => r.hacia === c.estado);
+    if (!regla) throw new Error('Tu rol no permite ese cambio de estado desde el estado actual');
+    if (regla.requiereMotivo && !c.motivo?.trim()) throw new Error(`"${regla.accion}" requiere un motivo`);
+    p.historialEstados = [{ estadoAnterior: p.estado, estadoNuevo: c.estado, usuario: actor.nombre, motivo: c.motivo?.trim() || null,
+      fecha: new Date().toISOString() }, ...(p.historialEstados ?? [])];
+    p.estado = c.estado;
+    p.version += 1;
+    await guardar(lista);
+    return armar(p);
+  },
+
 };

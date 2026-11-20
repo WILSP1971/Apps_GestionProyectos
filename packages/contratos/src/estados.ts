@@ -39,7 +39,8 @@ export const MAQUINA_ESTADOS: Record<EstadoSolicitud, ReglaTransicion[]> = {
   ASIGNADA: [{ hacia: 'EN_DESARROLLO', roles: ['INGENIERO', 'LIDER'], accion: 'Iniciar desarrollo' }],
   EN_DESARROLLO: [{ hacia: 'EN_VALIDACION', roles: ['INGENIERO', 'LIDER'], accion: 'Entregar a validación' }],
   EN_VALIDACION: [
-    { hacia: 'EN_DESARROLLO', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR'], requiereComentario: true, accion: 'Devolver con hallazgos' },
+    // El administrador y el director pueden regresar a desarrollo una solicitud en validación (con motivo)
+    { hacia: 'EN_DESARROLLO', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR', 'ADMIN'], requiereComentario: true, accion: 'Regresar a desarrollo' },
     { hacia: 'CERRADA', roles: ['SOLICITANTE', 'LIDER', 'DIRECTOR'], accion: 'Aceptar y cerrar' },
   ],
   RECHAZADA: [],

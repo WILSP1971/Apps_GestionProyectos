@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, FilePlus2, Info, Loader2, Pencil, Plus, Trash2, WifiOff, X } from 'lucide-react';
+import { ChevronLeft, FilePlus2, Info, Loader2, Pencil, Plus, RefreshCcw, Trash2, WifiOff, X } from 'lucide-react';
 import {
-  ESTADOS_PROYECTO, ETIQUETA_ESTADO, ETIQUETA_ESTADO_PROYECTO,
-  type CatalogosProyecto, type DetalleProyecto, type EstadoProyecto,
+  ETIQUETA_ESTADO, ETIQUETA_ESTADO_PROYECTO, transicionesProyecto,
+  type CatalogosProyecto, type DetalleProyecto, type ReglaProyecto,
 } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { BarraProgreso, Boton, Tarjeta, Vacio } from '@/componentes/ui/primitivos';
-import { useUsuario } from '@/componentes/layout/proveedores';
+import { useActor, useUsuario } from '@/componentes/layout/proveedores';
 import { InsigniaEstado } from '@/modulos/solicitudes/ui/insignias';
 import { fuenteApi, fuenteDemo, type FuenteProyectos } from '../infraestructura/fuente-proyectos';
 import { dinero, fechaCorta, InsigniaEstadoProyecto, InsigniaSalud } from './comunes';
@@ -35,7 +35,9 @@ export function DetalleProyectoPanel() {
   const id = usePathname().split('/').filter(Boolean).pop() ?? '';
   const router = useRouter();
   const { modoDemo } = useUsuario();
+  const actor = useActor();
   const fuente = modoDemo ? fuenteDemo : fuenteApi;
+  const [pidiendoMotivo, setPidiendoMotivo] = useState<ReglaProyecto | null>(null);
   const [p, setP] = useState<DetalleProyecto | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosProyecto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,14 +62,19 @@ export function DetalleProyectoPanel() {
   }
   if (!p) return <div className="h-96 animate-pulse rounded-xl bg-panel/60" />;
 
-  const cambiarEstado = async (estado: EstadoProyecto) => {
+  const acciones = transicionesProyecto(p.estado, actor.roles);
+  const cambiarEstado = async (regla: ReglaProyecto, motivo?: string) => {
     try {
-      setP(await fuente.actualizar(p.id, { estado, version: p.version }));
-      toast.success(`Proyecto ${ETIQUETA_ESTADO_PROYECTO[estado].toLowerCase()}`);
+      setP(await fuente.cambiarEstado(p.id, { estado: regla.hacia, version: p.version, ...(motivo && { motivo }) }, actor));
+      toast.success(regla.hacia === 'EN_EJECUCION' && p.estado === 'EN_VALIDACION'
+        ? 'Proyecto regresado a desarrollo' : `Proyecto ${ETIQUETA_ESTADO_PROYECTO[regla.hacia].toLowerCase()}`);
+      setPidiendoMotivo(null);
     } catch (e) {
       toast.error((e as Error).message);
+      throw e;
     }
   };
+  const ejecutar = (regla: ReglaProyecto) => (regla.requiereMotivo ? setPidiendoMotivo(regla) : void cambiarEstado(regla).catch(() => undefined));
   const eliminar = async () => {
     if (!confirmarEliminar) { setConfirmarEliminar(true); return; }
     try {
@@ -101,13 +108,16 @@ export function DetalleProyectoPanel() {
                 {p.salud.diasRestantes != null && (p.salud.diasRestantes >= 0 ? ` · faltan ${p.salud.diasRestantes} días` : ` · vencido hace ${-p.salud.diasRestantes} días`)}</span>
             </div>
           </div>
-          {p.permisos.editar && (
-            <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Estado del proyecto" className="campo h-9 w-auto py-0 text-sm" value={p.estado} onChange={(e) => void cambiarEstado(e.target.value as EstadoProyecto)}>
-                {ESTADOS_PROYECTO.map((e) => <option key={e} value={e}>{ETIQUETA_ESTADO_PROYECTO[e]}</option>)}
-              </select>
-              <Boton tamano="sm" variante="secundario" onClick={() => setEditando(true)}><Pencil className="size-4" /> Editar</Boton>
-              {p.solicitudes === 0 && (
+          {(p.permisos.editar || acciones.length > 0) && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {acciones.map((r) => (
+                <Boton key={r.hacia} tamano="sm" onClick={() => ejecutar(r)}
+                  variante={r.hacia === 'CANCELADO' ? 'peligro' : r.hacia === 'EN_EJECUCION' && p.estado === 'EN_VALIDACION' ? 'secundario' : r.hacia === 'CERRADO' ? 'exito' : 'primario'}>
+                  {r.hacia === 'EN_EJECUCION' && p.estado === 'EN_VALIDACION' && <RefreshCcw className="size-4" />}{r.accion}
+                </Boton>
+              ))}
+              {p.permisos.editar && <Boton tamano="sm" variante="secundario" onClick={() => setEditando(true)}><Pencil className="size-4" /> Editar</Boton>}
+              {p.permisos.editar && p.solicitudes === 0 && (
                 <Boton tamano="sm" variante={confirmarEliminar ? 'peligro' : 'fantasma'} onClick={eliminar} onBlur={() => setConfirmarEliminar(false)}>
                   <Trash2 className="size-4" />{confirmarEliminar ? '¿Eliminar?' : ''}
                 </Boton>
@@ -141,6 +151,10 @@ export function DetalleProyectoPanel() {
       {pestana === 'deuda' && <PanelDeuda p={p} fuente={fuente} alCambiar={recargar} />}
       {pestana === 'solicitudes' && <PanelSolicitudes p={p} catalogos={catalogos} fuente={fuente} alCambiar={recargar} />}
 
+      {pidiendoMotivo && (
+        <DialogoMotivo regla={pidiendoMotivo} estadoActual={ETIQUETA_ESTADO_PROYECTO[p.estado]}
+          alConfirmar={(m) => cambiarEstado(pidiendoMotivo, m)} alCerrar={() => setPidiendoMotivo(null)} />
+      )}
       {editando && (
         <FormularioProyecto inicial={p} catalogos={catalogos} alCerrar={() => setEditando(false)}
           alGuardar={async (datos) => {
@@ -241,6 +255,20 @@ function Resumen({ p }: { p: DetalleProyecto }) {
           <li className="flex justify-between"><span className="text-atenuado">Solicitudes cerradas</span>
             <b className="tabular-nums">{p.solicitudesDetalle.filter((s) => s.cerrada).length} / {p.solicitudes}</b></li>
         </ul>
+      </Tarjeta>
+      <Tarjeta titulo="Historial de estados" className="xl:col-span-2">
+        {p.historialEstados.length ? (
+          <ol className="space-y-3">
+            {p.historialEstados.map((h, i) => (
+              <li key={i} className="flex flex-wrap items-start gap-x-3 gap-y-1 text-sm">
+                <span className="w-36 shrink-0 text-xs text-atenuado">{new Date(h.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                <span className="flex items-center gap-1.5"><InsigniaEstadoProyecto estado={h.estadoAnterior} /><span className="text-atenuado">→</span><InsigniaEstadoProyecto estado={h.estadoNuevo} /></span>
+                <span className="text-xs text-atenuado">por {h.usuario}</span>
+                {h.motivo && <p className="basis-full text-sm text-texto/90 sm:pl-[9.75rem]">“{h.motivo}”</p>}
+              </li>
+            ))}
+          </ol>
+        ) : <p className="text-sm text-atenuado">Sin cambios de estado registrados.</p>}
       </Tarjeta>
     </div>
   );
@@ -406,5 +434,43 @@ function PanelSolicitudes({ p, catalogos, fuente, alCambiar }: { p: DetalleProye
         </div>
       )}
     </Tarjeta>
+  );
+}
+
+/** Pide el motivo de un cambio de estado (p. ej. regresar a desarrollo un proyecto en validación). */
+function DialogoMotivo({ regla, estadoActual, alConfirmar, alCerrar }: {
+  regla: ReglaProyecto; estadoActual: string; alConfirmar: (motivo: string) => Promise<void>; alCerrar: () => void;
+}) {
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const regresa = regla.hacia === 'EN_EJECUCION' && estadoActual === ETIQUETA_ESTADO_PROYECTO.EN_VALIDACION;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={regla.accion}>
+      <form className="w-full max-w-lg rounded-xl border border-borde bg-panel p-6 shadow-2xl" onSubmit={async (e) => {
+        e.preventDefault();
+        if (!motivo.trim()) return;
+        setEnviando(true);
+        try { await alConfirmar(motivo.trim()); } catch { setEnviando(false); }
+      }}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{regla.accion}</h2>
+          <button type="button" onClick={alCerrar} aria-label="Cerrar"><X className="size-5 text-atenuado" /></button>
+        </div>
+        <p className="mb-4 text-sm text-atenuado">
+          {regresa
+            ? 'El proyecto vuelve de En validación a En ejecución. Explica qué falta o qué se debe corregir: el equipo lo verá en el historial.'
+            : `El proyecto pasará de ${estadoActual} a ${ETIQUETA_ESTADO_PROYECTO[regla.hacia]}. Indica el motivo.`}
+        </p>
+        <label className="block"><span className="etiqueta">Motivo</span>
+          <textarea autoFocus required rows={4} maxLength={2000} value={motivo} onChange={(e) => setMotivo(e.target.value)} className="campo resize-y"
+            placeholder={regresa ? 'Ej.: Faltan las pruebas de integración del webhook de pagos.' : ''} /></label>
+        <div className="mt-5 flex justify-end gap-2">
+          <Boton type="button" variante="secundario" onClick={alCerrar}>Cancelar</Boton>
+          <Boton type="submit" variante={regla.hacia === 'CANCELADO' ? 'peligro' : 'primario'} disabled={!motivo.trim() || enviando}>
+            {enviando && <Loader2 className="size-4 animate-spin" />}{regla.accion}
+          </Boton>
+        </div>
+      </form>
+    </div>
   );
 }

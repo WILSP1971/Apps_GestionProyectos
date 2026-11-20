@@ -1,14 +1,70 @@
 import { z } from 'zod';
-import type { EstadoSolicitud } from './estados';
+import type { EstadoSolicitud, Rol } from './estados';
 import type { Finanzas, ResultadoSalud } from './pm';
 import type { TareaVista } from './evaluacion';
 
 /** Proyectos, riesgos y deuda técnica (Sprint 7 · PM Suite). */
-export const ESTADOS_PROYECTO = ['PLANEACION', 'EN_EJECUCION', 'EN_PAUSA', 'CERRADO', 'CANCELADO'] as const;
+export const ESTADOS_PROYECTO = ['PLANEACION', 'EN_EJECUCION', 'EN_VALIDACION', 'EN_PAUSA', 'CERRADO', 'CANCELADO'] as const;
 export type EstadoProyecto = (typeof ESTADOS_PROYECTO)[number];
 export const ETIQUETA_ESTADO_PROYECTO: Record<EstadoProyecto, string> = {
-  PLANEACION: 'Planeación', EN_EJECUCION: 'En ejecución', EN_PAUSA: 'En pausa', CERRADO: 'Cerrado', CANCELADO: 'Cancelado',
+  PLANEACION: 'Planeación', EN_EJECUCION: 'En ejecución', EN_VALIDACION: 'En validación', EN_PAUSA: 'En pausa',
+  CERRADO: 'Cerrado', CANCELADO: 'Cancelado',
 };
+
+export interface ReglaProyecto {
+  hacia: EstadoProyecto;
+  roles: Rol[];
+  requiereMotivo?: boolean;
+  /** Texto del botón de acción en la UI */
+  accion: string;
+}
+
+/**
+ * Ciclo de vida del proyecto (alineado con el de la solicitud). El ADMIN puede ejecutar cualquier
+ * transición. Desde *En validación*, líder, director y administrador pueden regresarlo a desarrollo
+ * (En ejecución) indicando el motivo.
+ */
+export const MAQUINA_ESTADOS_PROYECTO: Record<EstadoProyecto, ReglaProyecto[]> = {
+  PLANEACION: [
+    { hacia: 'EN_EJECUCION', roles: ['DIRECTOR'], accion: 'Iniciar ejecución' },
+    { hacia: 'CANCELADO', roles: ['DIRECTOR'], requiereMotivo: true, accion: 'Cancelar proyecto' },
+  ],
+  EN_EJECUCION: [
+    { hacia: 'EN_VALIDACION', roles: ['LIDER', 'DIRECTOR'], accion: 'Pasar a validación' },
+    { hacia: 'EN_PAUSA', roles: ['DIRECTOR'], requiereMotivo: true, accion: 'Pausar' },
+    { hacia: 'CANCELADO', roles: ['DIRECTOR'], requiereMotivo: true, accion: 'Cancelar proyecto' },
+  ],
+  EN_VALIDACION: [
+    { hacia: 'EN_EJECUCION', roles: ['LIDER', 'DIRECTOR', 'ADMIN'], requiereMotivo: true, accion: 'Regresar a desarrollo' },
+    { hacia: 'CERRADO', roles: ['DIRECTOR'], accion: 'Aceptar y cerrar' },
+  ],
+  EN_PAUSA: [
+    { hacia: 'EN_EJECUCION', roles: ['DIRECTOR'], accion: 'Reanudar' },
+    { hacia: 'CANCELADO', roles: ['DIRECTOR'], requiereMotivo: true, accion: 'Cancelar proyecto' },
+  ],
+  CERRADO: [{ hacia: 'EN_EJECUCION', roles: ['DIRECTOR'], requiereMotivo: true, accion: 'Reabrir proyecto' }],
+  CANCELADO: [],
+};
+
+/** Transiciones de proyecto que puede ejecutar alguien con estos roles (el ADMIN, todas). */
+export function transicionesProyecto(estado: EstadoProyecto, roles: readonly Rol[]): ReglaProyecto[] {
+  return MAQUINA_ESTADOS_PROYECTO[estado].filter((r) => roles.includes('ADMIN') || r.roles.some((rol) => roles.includes(rol)));
+}
+
+export const esquemaCambioEstadoProyecto = z.object({
+  estado: z.enum(ESTADOS_PROYECTO),
+  version: z.number().int().min(1),
+  motivo: z.string().trim().max(2000).optional(),
+});
+export type CambioEstadoProyecto = z.infer<typeof esquemaCambioEstadoProyecto>;
+
+export interface HistorialEstadoProyecto {
+  estadoAnterior: EstadoProyecto;
+  estadoNuevo: EstadoProyecto;
+  usuario: string;
+  motivo: string | null;
+  fecha: string;
+}
 
 export const ESTADOS_RIESGO = ['ABIERTO', 'MITIGADO', 'MATERIALIZADO', 'CERRADO'] as const;
 export type EstadoRiesgo = (typeof ESTADOS_RIESGO)[number];
@@ -44,7 +100,6 @@ export type NuevoProyecto = z.infer<typeof esquemaNuevoProyecto>;
 export const esquemaCambioProyecto = z.object({
   ...camposProyecto,
   nombre: camposProyecto.nombre.optional(),
-  estado: z.enum(ESTADOS_PROYECTO).optional(),
   version: z.number().int().min(1),
 }).refine(fechasCoherentes, { message: 'La fecha de fin debe ser posterior al inicio', path: ['fechaFinPlan'] });
 export type CambioProyecto = z.infer<typeof esquemaCambioProyecto>;
@@ -157,6 +212,8 @@ export interface DetalleProyecto extends ResumenProyecto {
   tareasProyecto: TareaVista[];
   riesgos: RiesgoVista[];
   deuda: DeudaVista[];
+  /** Cambios de estado con su motivo (regresar a desarrollo, pausar, reabrir…) */
+  historialEstados: HistorialEstadoProyecto[];
   permisos: { editar: boolean };
 }
 

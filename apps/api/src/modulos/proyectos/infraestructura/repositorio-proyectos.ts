@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import {
-  calcularFinanzas, saludCronograma, TIPOS_REQUIEREN_PROYECTO,
-  type CambioDeuda, type CambioProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
+  calcularFinanzas, MAQUINA_ESTADOS_PROYECTO, saludCronograma, TIPOS_REQUIEREN_PROYECTO, ETIQUETA_ESTADO_PROYECTO,
+  type CambioDeuda, type CambioEstadoProyecto, type CambioProyecto, type EstadoProyecto, type HistorialEstadoProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
   type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type ResumenProyecto, type RiesgoVista, type SolicitudDeProyecto, type TareaVista,
 } from '@sierraflow/contratos';
-import { ConflictoConcurrencia, ErrorDominio, NoEncontrado } from '../../../compartido/dominio/errores';
+import { ConflictoConcurrencia, ErrorDominio, NoEncontrado, SinPermiso } from '../../../compartido/dominio/errores';
+import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { db } from '../../../compartido/infraestructura/base-datos';
 
 const COLUMNAS_PROYECTO = `
@@ -58,7 +59,7 @@ export class RepositorioProyectos {
     const { rows } = await db().query(
       `SELECT ${COLUMNAS_PROYECTO} ${DESDE_PROYECTO}
         WHERE NOT p.eliminado
-        ORDER BY CASE p.estado WHEN 'EN_EJECUCION' THEN 0 WHEN 'PLANEACION' THEN 1 WHEN 'EN_PAUSA' THEN 2 ELSE 3 END,
+        ORDER BY CASE p.estado WHEN 'EN_EJECUCION' THEN 0 WHEN 'EN_VALIDACION' THEN 1 WHEN 'PLANEACION' THEN 2 WHEN 'EN_PAUSA' THEN 3 ELSE 4 END,
                  p.fecha_fin_plan NULLS LAST, p.nombre`);
     return rows.map((f: FilaProyecto) => conIndicadores(f));
   }
@@ -66,9 +67,51 @@ export class RepositorioProyectos {
   async detalle(id: string, editar: boolean): Promise<DetalleProyecto> {
     const { rows: [f] } = await db().query(`SELECT ${COLUMNAS_PROYECTO} ${DESDE_PROYECTO} WHERE p.id = $1 AND NOT p.eliminado`, [id]);
     if (!f) throw new NoEncontrado('Proyecto', id);
-    const [solicitudes, tareasProyecto, riesgos, deuda] = await Promise.all([
-      this.solicitudes(id), this.tareasProyecto(id), this.riesgos(id), this.deuda(id)]);
-    return { ...conIndicadores(f as FilaProyecto), solicitudesDetalle: solicitudes, tareasProyecto, riesgos, deuda, permisos: { editar } };
+    const [solicitudes, tareasProyecto, riesgos, deuda, historialEstados] = await Promise.all([
+      this.solicitudes(id), this.tareasProyecto(id), this.riesgos(id), this.deuda(id), this.historialEstados(id)]);
+    return { ...conIndicadores(f as FilaProyecto), solicitudesDetalle: solicitudes, tareasProyecto, riesgos, deuda, historialEstados, permisos: { editar } };
+  }
+
+  async historialEstados(proyectoId: string): Promise<HistorialEstadoProyecto[]> {
+    const { rows } = await db().query(
+      `SELECT h.estado_anterior::text AS "estadoAnterior", h.estado_nuevo::text AS "estadoNuevo", u.nombre_completo AS usuario,
+              h.motivo, h.creado_en AS fecha
+         FROM gestion.proyecto_historial_estados h JOIN gestion.usuarios u ON u.id = h.usuario_id
+        WHERE h.proyecto_id = $1 ORDER BY h.creado_en DESC LIMIT 50`, [proyectoId]);
+    return rows;
+  }
+
+  /**
+   * Cambio de estado según MAQUINA_ESTADOS_PROYECTO: valida rol y motivo, sella la fecha real de
+   * cierre y deja el cambio en el historial. Desde EN_VALIDACION, líder, director y administrador
+   * pueden regresar el proyecto a desarrollo (EN_EJECUCION) con un motivo.
+   */
+  async cambiarEstado(id: string, c: CambioEstadoProyecto, u: UsuarioActual): Promise<void> {
+    const { rows: [p] } = await db().query(
+      `SELECT estado::text AS estado, version FROM gestion.proyectos WHERE id = $1 AND NOT eliminado`, [id]);
+    if (!p) throw new NoEncontrado('Proyecto', id);
+    if (p.version !== c.version) throw new ConflictoConcurrencia('Proyecto', id);
+    const desde = p.estado as EstadoProyecto;
+    const regla = MAQUINA_ESTADOS_PROYECTO[desde].find((r) => r.hacia === c.estado);
+    if (!regla) {
+      throw new ErrorDominio('TRANSICION_INVALIDA',
+        `Un proyecto ${ETIQUETA_ESTADO_PROYECTO[desde].toLowerCase()} no puede pasar a ${ETIQUETA_ESTADO_PROYECTO[c.estado].toLowerCase()}`);
+    }
+    if (!u.roles.includes('ADMIN') && !regla.roles.some((r) => u.roles.includes(r))) {
+      throw new SinPermiso(`Tu rol no permite "${regla.accion}"`);
+    }
+    if (regla.requiereMotivo && !c.motivo?.trim()) throw new ErrorDominio('MOTIVO_REQUERIDO', `"${regla.accion}" requiere un motivo`);
+
+    const { rowCount } = await db().query(
+      `UPDATE gestion.proyectos
+          SET estado = $3::gestion.estado_proyecto,
+              fecha_fin_real = CASE WHEN $3 = 'CERRADO' THEN current_date ELSE NULL END
+        WHERE id = $1 AND version = $2 AND NOT eliminado`, [id, c.version, c.estado]);
+    if (!rowCount) throw new ConflictoConcurrencia('Proyecto', id);
+    await db().query(
+      `INSERT INTO gestion.proyecto_historial_estados(proyecto_id, estado_anterior, estado_nuevo, usuario_id, motivo)
+       VALUES ($1, $2::gestion.estado_proyecto, $3::gestion.estado_proyecto, $4, $5)`,
+      [id, desde, c.estado, u.id, c.motivo?.trim() || null]);
   }
 
   /** Proyectos en los que participa la persona: tiene tareas (propias del proyecto o de sus solicitudes) o está asignada. */
@@ -179,11 +222,11 @@ export class RepositorioProyectos {
     const columnas: [string, unknown][] = ([
       ['nombre', c.nombre], ['descripcion', c.descripcion], ['departamento_id', c.departamentoId], ['director_id', c.directorId],
       ['fecha_inicio', c.fechaInicio], ['fecha_fin_plan', c.fechaFinPlan], ['presupuesto', c.presupuesto], ['costo_real', c.costoOtros],
-      ['tarifa_hora', c.tarifaHora], ['beneficio_esperado', c.beneficioEsperado], ['moneda', c.moneda], ['estado', c.estado],
+      ['tarifa_hora', c.tarifaHora], ['beneficio_esperado', c.beneficioEsperado], ['moneda', c.moneda],
     ] as [string, unknown][]).filter(([, v]) => v !== undefined);
-    if (c.estado === 'CERRADO') columnas.push(['fecha_fin_real', new Date().toISOString().slice(0, 10)]);
+    // El estado se cambia solo con cambiarEstado (ciclo de vida, motivo e historial)
     if (!columnas.length) return;
-    const sets = columnas.map(([k], i) => `${k} = $${i + 3}${k === 'estado' ? '::gestion.estado_proyecto' : ''}`).join(', ');
+    const sets = columnas.map(([k], i) => `${k} = $${i + 3}`).join(', ');
     const { rowCount } = await db().query(
       `UPDATE gestion.proyectos SET ${sets} WHERE id = $1 AND version = $2 AND NOT eliminado`,
       [id, c.version, ...columnas.map(([, v]) => v)]);

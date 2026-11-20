@@ -91,3 +91,22 @@ test('regla 1: un requerimiento FUNCIONAL sin proyecto no se asigna; una MEJORA 
   mejora.cambiarEstado('ASIGNADA', lider);
   assert.equal(mejora.estado, 'ASIGNADA');
 });
+
+test('el administrador y el director regresan a desarrollo desde validación (con motivo); el ingeniero no', () => {
+  const admin: UsuarioActual = { id: 'u7', roles: ['ADMIN'], departamentoId: 'd1' };
+  const director: UsuarioActual = { id: 'u8', roles: ['DIRECTOR'], departamentoId: 'd1' };
+  const enValidacion = () => {
+    const s = nueva();
+    s.cambiarEstado('ENVIADA', solicitante); s.cambiarEstado('EN_REVISION', lider); s.cambiarEstado('APROBADA', lider);
+    s.cambiarEstado('ASIGNADA', lider); s.cambiarEstado('EN_DESARROLLO', ingeniero); s.cambiarEstado('EN_VALIDACION', ingeniero);
+    return s;
+  };
+  const a = enValidacion();
+  assert.throws(() => a.cambiarEstado('EN_DESARROLLO', admin), /comentario/);
+  a.cambiarEstado('EN_DESARROLLO', admin, 'Faltan pruebas de regresión');
+  assert.equal(a.estado, 'EN_DESARROLLO');
+  const d = enValidacion();
+  d.cambiarEstado('EN_DESARROLLO', director, 'Hallazgos en la revisión');
+  assert.equal(d.estado, 'EN_DESARROLLO');
+  assert.throws(() => enValidacion().cambiarEstado('EN_DESARROLLO', ingeniero, 'x'), /rol/);
+});

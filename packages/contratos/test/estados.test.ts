@@ -15,3 +15,12 @@ test('un líder puede aprobar, rechazar o devolver', () => {
 test('los estados finales no tienen salida', () => {
   for (const e of ESTADOS_FINALES) assert.equal(MAQUINA_ESTADOS[e].length, 0);
 });
+
+test('administrador, director y líder pueden regresar a desarrollo desde validación', () => {
+  for (const rol of ['ADMIN', 'DIRECTOR', 'LIDER'] as const) {
+    const r = transicionesDisponibles('EN_VALIDACION', [rol]).find((x) => x.hacia === 'EN_DESARROLLO');
+    assert.ok(r, rol);
+    assert.equal(r.requiereComentario, true);
+  }
+  assert.equal(transicionesDisponibles('EN_VALIDACION', ['INGENIERO']).length, 0);
+});

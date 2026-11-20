@@ -46,7 +46,8 @@ export function InsigniaSalud({ salud, className }: { salud: Salud; className?: 
 }
 
 const ESTILO_ESTADO: Record<EstadoProyecto, string> = {
-  PLANEACION: 'text-sky-200 bg-sky-500/10', EN_EJECUCION: 'text-teal-200 bg-teal-500/10', EN_PAUSA: 'text-amber-200 bg-amber-500/10',
+  PLANEACION: 'text-sky-200 bg-sky-500/10', EN_EJECUCION: 'text-teal-200 bg-teal-500/10',
+  EN_VALIDACION: 'text-violet-200 bg-violet-500/10', EN_PAUSA: 'text-amber-200 bg-amber-500/10',
   CERRADO: 'text-slate-300 bg-slate-500/15', CANCELADO: 'text-red-300 bg-red-500/10',
 };
 export function InsigniaEstadoProyecto({ estado }: { estado: EstadoProyecto }) {

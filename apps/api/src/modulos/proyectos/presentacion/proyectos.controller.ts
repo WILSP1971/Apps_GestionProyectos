@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import {
   esquemaCambioDeuda, esquemaCambioProyecto, esquemaCambioRiesgo, esquemaDeuda, esquemaNuevoProyecto, esquemaRiesgo, esquemaSolicitudesProyecto,
-  type CambioDeuda, type CambioProyecto, type CambioRiesgo, type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type SolicitudesProyecto,
+  type CambioDeuda, type CambioProyecto, type CambioRiesgo, type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type SolicitudesProyecto, esquemaCambioEstadoProyecto, type CambioEstadoProyecto
 } from '@sierraflow/contratos';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { enTransaccion } from '../../../compartido/infraestructura/base-datos';
@@ -49,6 +49,16 @@ export class ProyectosController {
   @Roles('DIRECTOR')
   crear(@Body(new ZodPipe(esquemaNuevoProyecto)) dto: NuevoProyecto, @Usuario() u: UsuarioActual) {
     return enTransaccion(u.id, async () => this.repo.detalle(await this.repo.crear(dto, u.id), true));
+  }
+
+  /** Ciclo de vida: líder, director y administrador pueden regresar a desarrollo un proyecto en validación. */
+  @Patch(':id/estado')
+  @Roles('DIRECTOR', 'LIDER')
+  cambiarEstado(@Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(esquemaCambioEstadoProyecto)) dto: CambioEstadoProyecto, @Usuario() u: UsuarioActual) {
+    return enTransaccion(u.id, async () => {
+      await this.repo.cambiarEstado(id, dto, u);
+      return this.repo.detalle(id, esDirector(u));
+    });
   }
 
   @Patch(':id')
