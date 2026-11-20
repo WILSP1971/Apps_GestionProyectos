@@ -6,19 +6,28 @@ import {
   BarChart3, ClipboardCheck, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, ListChecks, Settings,
   UserCog, UsersRound, Workflow,
 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import type { Rol } from '@sierraflow/contratos';
+import { dbLocal } from '@/lib/offline/db';
 import { cn } from '@/lib/utils';
 import { useUsuario } from './proveedores';
 import { perfilDe, type Perfil } from './perfil';
 
-interface Item { href: string; etiqueta: string; icono: React.ElementType; roles?: Rol[] }
+interface Item {
+  href: string; etiqueta: string; icono: React.ElementType;
+  /** Solo para estos roles */
+  roles?: Rol[];
+  /** Oculto para estos roles, salvo que también sea ADMIN */
+  ocultarPara?: Rol[];
+}
 type Seccion = { titulo?: string; items: Item[] };
 
 const CUENTA: Seccion = {
   titulo: 'Cuenta',
   items: [
     { href: '/administracion/usuarios', etiqueta: 'Usuarios y equipos', icono: UserCog, roles: ['ADMIN'] },
-    { href: '/configuracion', etiqueta: 'Configuración', icono: Settings },
+    // Director y líder técnico no ven Configuración (el administrador sí)
+    { href: '/configuracion', etiqueta: 'Configuración', icono: Settings, ocultarPara: ['DIRECTOR', 'LIDER'] },
     { href: '/ayuda', etiqueta: 'Ayuda', icono: HelpCircle },
   ],
 };
@@ -54,11 +63,8 @@ const MENUS: Record<Perfil, Seccion[]> = {
     },
     {
       titulo: 'Solicitudes',
-      items: [
-        { href: '/solicitudes/nueva', etiqueta: 'Nueva solicitud', icono: FilePlus2 },
-        { href: '/mis-solicitudes', etiqueta: 'Mis solicitudes', icono: ClipboardList },
-        { href: '/solicitudes', etiqueta: 'Bandeja de solicitudes', icono: Inbox },
-      ],
+      // Gestión no crea ni sigue solicitudes propias: las recibe en la bandeja (y las crea dentro de un proyecto)
+      items: [{ href: '/solicitudes', etiqueta: 'Bandeja de solicitudes', icono: Inbox }],
     },
     {
       titulo: 'Gestión',
@@ -76,7 +82,14 @@ const MENUS: Record<Perfil, Seccion[]> = {
 export function BarraLateral() {
   const ruta = usePathname();
   const { rolesVista } = useUsuario();
-  const secciones = MENUS[perfilDe(rolesVista)];
+  const perfil = perfilDe(rolesVista);
+  const secciones = MENUS[perfil];
+  // Solicitudes recibidas sin revisar: contador junto a la bandeja
+  const nuevas = useLiveQuery(
+    () => (perfil === 'GESTION' ? dbLocal.solicitudes.where('estado').equals('ENVIADA').count() : Promise.resolve(0)), [perfil]) ?? 0;
+  const visible = (it: Item) =>
+    (!it.roles || it.roles.some((r) => rolesVista.includes(r)))
+    && (!it.ocultarPara || rolesVista.includes('ADMIN') || !it.ocultarPara.some((r) => rolesVista.includes(r)));
   const activo = (href: string) =>
     href === '/solicitudes' ? ruta === '/solicitudes' : ruta === href || (ruta.startsWith(href + '/') && href !== '/solicitudes/nueva');
 
@@ -90,7 +103,7 @@ export function BarraLateral() {
       </Link>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6" aria-label="Navegación principal">
         {secciones.map((sec, i) => {
-          const visibles = sec.items.filter((it) => !it.roles || it.roles.some((r) => rolesVista.includes(r)));
+          const visibles = sec.items.filter(visible);
           if (!visibles.length) return null;
           return (
             <div key={i}>
@@ -109,7 +122,10 @@ export function BarraLateral() {
                       )}
                     >
                       <Icono className="size-4" />
-                      {etiqueta}
+                      <span className="flex-1">{etiqueta}</span>
+                      {href === '/solicitudes' && nuevas > 0 && (
+                        <span className="rounded-full bg-primario px-1.5 text-[10px] font-bold tabular-nums text-slate-950" title={`${nuevas} sin revisar`}>{nuevas}</span>
+                      )}
                     </Link>
                   </li>
                 ))}

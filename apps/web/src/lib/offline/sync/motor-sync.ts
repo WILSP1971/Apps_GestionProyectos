@@ -18,7 +18,7 @@ const LOTE_PUSH = 50;
 const LIMITE_PULL = 200;
 const CURSORES_INICIALES: CursoresSync = { solicitudes: 0, comentarios: 0, notificaciones: 0 };
 
-const VERSION_DATOS = 2;
+const VERSION_DATOS = 3; // 3: notificaciones con su tipo (aviso de solicitud nueva)
 
 export function aSolicitudLocal(s: SolicitudSync, pendiente = false): SolicitudLocal {
   const { eliminado: _e, seq: _s, ...resto } = s;

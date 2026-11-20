@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Activity, AlertTriangle, CheckCircle2, Clock4, Layers } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, CheckCircle2, Clock4, Inbox, Layers } from 'lucide-react';
 import { ESTADOS, ETIQUETA_ESTADO, type EstadoSolicitud } from '@sierraflow/contratos';
 import { dbLocal } from '@/lib/offline/db';
 import { cn, haceTiempo } from '@/lib/utils';
 import { Avatar, BarraProgreso, Tarjeta } from '@/componentes/ui/primitivos';
 import { COLOR_ESTADO, InsigniaEstado } from '@/modulos/solicitudes/ui/insignias';
+import { useUsuario } from '@/componentes/layout/proveedores';
+import { perfilDe } from '@/componentes/layout/perfil';
 
 const EN_CURSO: EstadoSolicitud[] = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION'];
 const ABIERTAS: EstadoSolicitud[] = ['ENVIADA', 'EN_REVISION', 'APROBADA', ...EN_CURSO];
@@ -25,9 +27,35 @@ function Kpi({ etiqueta, valor, detalle, icono: Icono, color }: { etiqueta: stri
   );
 }
 
+/** Panel de gestión: alerta permanente mientras haya solicitudes recibidas sin revisar. */
+function AlertaSolicitudesNuevas({ nuevas }: { nuevas: { id: string; codigo: string; titulo: string; solicitanteNombre: string; actualizadoEn: string }[] }) {
+  if (!nuevas.length) return null;
+  const ultima = nuevas[0]!;
+  return (
+    <Link href="/solicitudes?estado=ENVIADA"
+      className="group flex flex-wrap items-center gap-4 rounded-xl border border-primario/40 bg-gradient-to-r from-primario/15 via-primario/5 to-transparent px-5 py-4 transition hover:border-primario/70">
+      <span className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-primario/20 text-teal-200">
+        <Inbox className="size-5" />
+        <span className="absolute -right-1.5 -top-1.5 grid min-w-5 place-items-center rounded-full bg-primario px-1 text-[11px] font-bold text-slate-950">{nuevas.length}</span>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">{nuevas.length === 1 ? 'Tienes 1 solicitud nueva por revisar' : `Tienes ${nuevas.length} solicitudes nuevas por revisar`}</p>
+        <p className="truncate text-sm text-atenuado">
+          Última: <span className="font-mono text-sky-300">{ultima.codigo}</span> · {ultima.titulo} · de {ultima.solicitanteNombre} · {haceTiempo(ultima.actualizadoEn)}
+        </p>
+      </div>
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-200">Ir a la bandeja<ArrowRight className="size-4 transition group-hover:translate-x-0.5" /></span>
+    </Link>
+  );
+}
+
 export function PanelDashboard() {
+  const { rolesVista } = useUsuario();
   const solicitudes = useLiveQuery(() => dbLocal.solicitudes.toArray(), []);
   if (!solicitudes) return <div className="h-96 animate-pulse rounded-xl bg-panel/50" />;
+  const nuevas = perfilDe(rolesVista) === 'GESTION'
+    ? solicitudes.filter((s) => s.estado === 'ENVIADA').sort((a, b) => b.actualizadoEn.localeCompare(a.actualizadoEn))
+    : [];
 
   const porEstado = ESTADOS.map((e) => ({ estado: e, total: solicitudes.filter((s) => s.estado === e).length }));
   const maximo = Math.max(1, ...porEstado.map((p) => p.total));
@@ -41,6 +69,7 @@ export function PanelDashboard() {
 
   return (
     <div className="space-y-6">
+      <AlertaSolicitudesNuevas nuevas={nuevas} />
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <Kpi etiqueta="Total solicitudes" valor={solicitudes.length} detalle="Registradas en el sistema" icono={Layers} color="bg-sky-500/15 text-sky-300" />
         <Kpi etiqueta="En ejecución" valor={enCurso.length} detalle="Asignadas, en desarrollo o validación" icono={Activity} color="bg-blue-500/15 text-blue-300" />

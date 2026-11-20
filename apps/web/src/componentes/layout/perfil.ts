@@ -14,5 +14,12 @@ export function perfilDe(roles: readonly Rol[]): Perfil {
   return 'SOLICITANTE';
 }
 
-/** ¿Puede crear solicitudes desde la barra superior? (el ingeniero trabaja sobre lo asignado) */
-export const creaSolicitudes = (roles: readonly Rol[]) => perfilDe(roles) !== 'INGENIERO';
+/**
+ * ¿Crea solicitudes desde el menú y la barra superior? Solo el solicitante: gestión las recibe en la
+ * bandeja (y las crea dentro de un proyecto) y el ingeniero trabaja sobre lo asignado.
+ */
+export const creaSolicitudes = (roles: readonly Rol[]) => perfilDe(roles) === 'SOLICITANTE';
+
+/** Configuración: la ven solicitante, ingeniero y administrador; director y líder no (salvo que también sea ADMIN). */
+export const veConfiguracion = (roles: readonly Rol[]) =>
+  roles.includes('ADMIN') || !roles.some((r) => r === 'DIRECTOR' || r === 'LIDER');

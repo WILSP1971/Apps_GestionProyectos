@@ -165,7 +165,8 @@ export function PanelUsuarios() {
               </select></label>
             <div><span className="mb-1.5 block text-xs text-atenuado">Roles</span>
               <div className="flex flex-wrap gap-1.5">{catalogos.roles.map((r) => (
-                <button key={r.codigo} type="button" className={chip(editando.roles.includes(r.codigo))} onClick={() => alternar('roles', r.codigo)}>{r.nombre}</button>))}</div></div>
+                <button key={r.codigo} type="button" className={chip(editando.roles.includes(r.codigo))} onClick={() => alternar('roles', r.codigo)}>{r.nombre}</button>))}</div>
+              <p className="mt-1.5 text-[11px] text-atenuado">Solicitante es todo usuario que no sea del equipo: al asignar Ingeniero, Líder, Director o Administrador se quita el rol de solicitante.</p></div>
             <div><span className="mb-1.5 block text-xs text-atenuado">Grupos de trabajo</span>
               <div className="flex flex-wrap gap-1.5">{catalogos.grupos.map((g) => (
                 <button key={g.id} type="button" className={chip(editando.grupos.includes(g.id))} onClick={() => alternar('grupos', g.id)}>{g.nombre}</button>))}</div></div>

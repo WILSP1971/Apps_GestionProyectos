@@ -13,6 +13,19 @@ export type EstadoSolicitud = (typeof ESTADOS)[number];
 export const ROLES = ['SOLICITANTE', 'INGENIERO', 'LIDER', 'DIRECTOR', 'ADMIN'] as const;
 export type Rol = (typeof ROLES)[number];
 
+/** Roles del equipo de TI. Quien tiene alguno de estos NO es solicitante. */
+export const ROLES_EQUIPO: readonly Rol[] = ['INGENIERO', 'LIDER', 'DIRECTOR', 'ADMIN'];
+
+/**
+ * Regla de roles al iniciar sesión o al editar un usuario: es **Solicitante** todo correo que no
+ * esté registrado como ingeniero de desarrollo, líder técnico, director o administrador.
+ * Los roles de equipo excluyen el de solicitante; sin rol de equipo, queda como solicitante.
+ */
+export function normalizarRoles(roles: readonly Rol[]): Rol[] {
+  const equipo = ROLES.filter((r) => r !== 'SOLICITANTE' && roles.includes(r));
+  return equipo.length ? equipo : ['SOLICITANTE'];
+}
+
 export interface ReglaTransicion {
   hacia: EstadoSolicitud;
   roles: Rol[];

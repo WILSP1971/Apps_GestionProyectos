@@ -34,8 +34,8 @@ const motivo = (c: ContextoEvento) => (c.comentario ? ` Motivo: ${c.comentario}`
 export const PLANTILLAS: Record<string, Regla[]> = {
   'solicitud.enviada': [{
     quien: 'GESTORES', grupo: 'POR_REVISAR', severidad: 'INFO',
-    titulo: (c) => `Nueva solicitud por revisar: ${c.codigo}`,
-    mensaje: (c) => `"${c.titulo}" fue enviada${por(c)}.`,
+    titulo: (c) => `Recibiste una solicitud nueva: ${c.codigo}`,
+    mensaje: (c) => `"${c.titulo}" fue enviada${por(c)} y está esperando revisión.`,
   }],
   'solicitud.en_revision': [{
     quien: 'SOLICITANTE', grupo: 'MIS_SOLICITUDES', severidad: 'INFO',

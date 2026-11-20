@@ -80,7 +80,8 @@ export class LecturaSync {
         [u.id, verTodo(u), cursores.comentarios, limite]),
       db().query<NotificacionSync>(
         `SELECT n.id, n.titulo, n.mensaje, coalesce(n.enlace, '/dashboard') AS enlace, n.severidad,
-                CASE WHEN n.leida THEN 1 ELSE 0 END AS leida, n.creado_en AS "creadoEn", n.seq_cambio::float8 AS seq
+                CASE WHEN n.leida THEN 1 ELSE 0 END AS leida, n.creado_en AS "creadoEn", n.tipo_evento AS tipo,
+                n.seq_cambio::float8 AS seq
            FROM gestion.notificaciones n
           WHERE n.usuario_id = $1 AND n.seq_cambio > $2
           ORDER BY n.seq_cambio LIMIT $3`,

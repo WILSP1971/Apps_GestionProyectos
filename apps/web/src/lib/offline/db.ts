@@ -67,6 +67,8 @@ export interface NotificacionLocal {
   severidad: 'INFO' | 'EXITO' | 'ALERTA' | 'CRITICA';
   leida: 0 | 1;
   creadoEn: string;
+  /** Evento de dominio que la originó (p. ej. 'solicitud.enviada') */
+  tipo?: string | null;
 }
 
 export interface OperacionPendiente {

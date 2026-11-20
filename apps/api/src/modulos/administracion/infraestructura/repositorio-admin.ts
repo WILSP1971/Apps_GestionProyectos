@@ -1,3 +1,4 @@
+import { normalizarRoles } from '@sierraflow/contratos';
 import { Injectable } from '@nestjs/common';
 import type { CambioUsuario, NuevoUsuario, CatalogosAdmin, UsuarioAdmin } from '@sierraflow/contratos';
 import { ErrorDominio } from '../../../compartido/dominio/errores';
@@ -82,7 +83,7 @@ export class RepositorioAdmin {
       await db().query(`DELETE FROM gestion.usuario_roles WHERE usuario_id = $1`, [id]);
       await db().query(
         `INSERT INTO gestion.usuario_roles(usuario_id, rol_id) SELECT $1, r.id FROM gestion.roles r WHERE r.codigo = ANY($2::text[])`,
-        [id, c.roles]);
+        [id, normalizarRoles(c.roles)]); // los roles de equipo excluyen el de solicitante
     }
     if (c.grupos) {
       await db().query(`DELETE FROM gestion.grupo_miembros WHERE usuario_id = $1 AND NOT (grupo_id = ANY($2::uuid[]))`, [id, c.grupos]);

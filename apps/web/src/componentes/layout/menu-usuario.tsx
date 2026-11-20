@@ -11,6 +11,7 @@ import { desactivarPush } from '@/lib/push';
 import { tiempoReal } from '@/lib/tiempo-real';
 import { Avatar } from '@/componentes/ui/primitivos';
 import { useUsuario } from './proveedores';
+import { veConfiguracion } from './perfil';
 
 const ETIQUETA_ROL: Record<string, string> = {
   SOLICITANTE: 'Solicitante', INGENIERO: 'Ingeniero', LIDER: 'Líder', DIRECTOR: 'Director', ADMIN: 'Administrador',
@@ -22,7 +23,7 @@ const ETIQUETA_ROL: Record<string, string> = {
  * push de este equipo y borra los datos locales (para que otra persona no los vea en un equipo compartido).
  */
 export function MenuUsuario() {
-  const { usuario, modoDemo } = useUsuario();
+  const { usuario, modoDemo, rolesVista } = useUsuario();
   const [abierto, setAbierto] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [pendientes, setPendientes] = useState<number | null>(null);
@@ -90,10 +91,12 @@ export function MenuUsuario() {
             </div>
           </div>
           <div className="py-1">
-            <Link href="/configuracion" role="menuitem" onClick={() => setAbierto(false)}
-              className="flex items-center gap-2.5 px-4 py-2 text-sm text-atenuado hover:bg-panel-2 hover:text-texto">
-              <Settings className="size-4" /> Configuración
-            </Link>
+            {veConfiguracion(rolesVista) && (
+              <Link href="/configuracion" role="menuitem" onClick={() => setAbierto(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-sm text-atenuado hover:bg-panel-2 hover:text-texto">
+                <Settings className="size-4" /> Configuración
+              </Link>
+            )}
             {usuario.roles.includes('ADMIN') && (
               <Link href="/administracion/usuarios" role="menuitem" onClick={() => setAbierto(false)}
                 className="flex items-center gap-2.5 px-4 py-2 text-sm text-atenuado hover:bg-panel-2 hover:text-texto">

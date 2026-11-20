@@ -10,6 +10,7 @@ import { dbLocal } from '@/lib/offline/db';
 import { cn, fecha, haceTiempo } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton, Vacio } from '@/componentes/ui/primitivos';
 import { useUsuario } from '@/componentes/layout/proveedores';
+import { creaSolicitudes } from '@/componentes/layout/perfil';
 import { InsigniaEstado, InsigniaPrioridad } from './insignias';
 
 type Filtro = 'TODAS' | 'ABIERTAS' | EstadoSolicitud;
@@ -21,7 +22,7 @@ const ABIERTAS: EstadoSolicitud[] = ['BORRADOR', 'ENVIADA', 'EN_REVISION', 'APRO
  *  - alcance "todas": bandeja de gestión para líderes y directores
  */
 export function ListaSolicitudes({ alcance }: { alcance: 'mias' | 'todas' }) {
-  const { usuario } = useUsuario();
+  const { usuario, rolesVista } = useUsuario();
   const params = useSearchParams();
   const [filtro, setFiltro] = useState<Filtro>('ABIERTAS');
   const [texto, setTexto] = useState(params.get('q') ?? '');
@@ -72,7 +73,7 @@ export function ListaSolicitudes({ alcance }: { alcance: 'mias' | 'todas' }) {
           icono={alcance === 'mias' ? <FilePlus2 className="size-8" /> : <Inbox className="size-8" />}
           titulo="No hay solicitudes con este filtro"
           texto={alcance === 'mias' ? 'Crea una solicitud y haz seguimiento a su avance desde aquí.' : 'Cuando lleguen solicitudes nuevas aparecerán en esta bandeja.'}
-          accion={alcance === 'mias' ? <Link href="/solicitudes/nueva"><Boton tamano="sm">Crear solicitud</Boton></Link> : undefined}
+          accion={alcance === 'mias' && creaSolicitudes(rolesVista) ? <Link href="/solicitudes/nueva"><Boton tamano="sm">Crear solicitud</Boton></Link> : undefined}
         />
       ) : (
         <ul className="grid gap-3">

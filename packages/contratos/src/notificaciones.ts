@@ -75,4 +75,9 @@ export interface EventoNotificacion {
   mensaje: string;
   enlace: string;
   severidad: 'INFO' | 'EXITO' | 'ALERTA' | 'CRITICA';
+  /** Evento de dominio que la originó (p. ej. 'solicitud.enviada') */
+  tipo?: string | null;
 }
+
+/** Evento que dispara el aviso "Recibiste una solicitud nueva" en el panel de gestión. */
+export const TIPO_SOLICITUD_NUEVA = 'solicitud.enviada';

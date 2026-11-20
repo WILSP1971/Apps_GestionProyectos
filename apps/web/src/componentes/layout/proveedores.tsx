@@ -9,7 +9,8 @@ import { EVENTO_CONFLICTO, motorSync } from '@/lib/offline/sync/motor-sync';
 import { precalentarPaginas } from '@/lib/offline/precalentar';
 import { establecerModoDemo } from '@/lib/modo';
 import { EVENTO_NOTIFICACION, tiempoReal } from '@/lib/tiempo-real';
-import type { EventoNotificacion } from '@sierraflow/contratos';
+import { TIPO_SOLICITUD_NUEVA, type EventoNotificacion } from '@sierraflow/contratos';
+import { perfilDe } from './perfil';
 import { configurarCasosUso } from '@/modulos/solicitudes/aplicacion/casos-uso';
 import { sembrarDemoSiVacio } from '@/modulos/solicitudes/infraestructura/datos-demo';
 
@@ -80,6 +81,8 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
     const alNotificar = (e: Event) => {
       const n = (e as CustomEvent<EventoNotificacion>).detail;
       if (!n) return;
+      // En el panel de gestión la solicitud nueva se anuncia con el aviso modal, no con un toast
+      if (n.tipo === TIPO_SOLICITUD_NUEVA && perfilDe(usuario.roles) === 'GESTION') return;
       const mostrar = { EXITO: toast.success, ALERTA: toast.warning, CRITICA: toast.error, INFO: toast.info }[n.severidad] ?? toast;
       mostrar(n.titulo, { description: n.mensaje, action: { label: 'Ver', onClick: () => location.assign(n.enlace) } });
     };

@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Encabezado } from '@/componentes/layout/encabezado';
-import { ListaSolicitudes } from '@/modulos/solicitudes/ui/lista-solicitudes';
+import { BandejaSolicitudes } from '@/modulos/solicitudes/ui/bandeja-solicitudes';
 
 export const metadata: Metadata = { title: 'Bandeja de solicitudes' };
 
 export default function PaginaBandeja() {
   return (
     <>
-      <Encabezado antetitulo="Gestión" titulo="Bandeja de solicitudes" descripcion="Todas las solicitudes de los departamentos de la empresa." />
+      <Encabezado antetitulo="Gestión" titulo="Bandeja de solicitudes" descripcion="Solicitudes recibidas de todos los departamentos, con su estado e información. Las nuevas aparecen primero." />
       <Suspense>
-        <ListaSolicitudes alcance="todas" />
+        <BandejaSolicitudes />
       </Suspense>
     </>
   );

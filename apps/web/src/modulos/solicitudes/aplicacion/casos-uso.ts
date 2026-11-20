@@ -4,8 +4,7 @@ import {
   transicionesDisponibles,
   type EstadoSolicitud,
   type NuevaSolicitud,
-  type Rol,
-} from '@sierraflow/contratos';
+  type Rol, TIPO_SOLICITUD_NUEVA } from '@sierraflow/contratos';
 import { dbLocal, type SolicitudLocal } from '@/lib/offline/db';
 import { avisarCambioLocal } from '@/lib/offline/sync/motor-sync';
 import { nuevoId } from '@/lib/utils';
@@ -41,10 +40,15 @@ let ultimaMarca = 0;
 const marca = () => (ultimaMarca = Math.max(Date.now(), ultimaMarca + 1));
 const codigoProvisional = (id: string) => `SOL-L${id.replace(/-/g, '').slice(0, 5).toUpperCase()}`;
 
-async function notificar(titulo: string, mensaje: string, enlace: string, severidad: 'INFO' | 'EXITO' | 'ALERTA' = 'INFO') {
+async function notificar(titulo: string, mensaje: string, enlace: string, severidad: 'INFO' | 'EXITO' | 'ALERTA' = 'INFO', tipo: string | null = null) {
   if (!modoDemo) return;
-  await dbLocal.notificaciones.add({ id: nuevoId(), titulo, mensaje, enlace, severidad, leida: 0, creadoEn: ahora() });
+  await dbLocal.notificaciones.add({ id: nuevoId(), titulo, mensaje, enlace, severidad, leida: 0, creadoEn: ahora(), tipo });
 }
+
+/** Demo: simula el aviso que recibe el panel de gestión (en real lo genera el servidor). */
+const avisarGestion = (codigo: string, titulo: string, autor: string, id: string) =>
+  notificar(`Recibiste una solicitud nueva: ${codigo}`, `"${titulo}" fue enviada por ${autor} y está esperando revisión.`,
+    `/solicitudes/${id}`, 'INFO', TIPO_SOLICITUD_NUEVA);
 
 export async function crearSolicitud(
   datos: NuevaSolicitud, actor: Actor, proyecto?: { id: string; codigo?: string | null; nombre?: string | null },
@@ -92,6 +96,7 @@ export async function crearSolicitud(
     });
     if (v.enviar) {
       await notificar('Solicitud enviada', `"${v.titulo}" quedó en cola para revisión.`, `/solicitudes/${id}`, 'EXITO');
+      await avisarGestion(solicitud.codigo, v.titulo, actor.nombre, id);
     }
   });
   avisarCambioLocal();
@@ -128,6 +133,7 @@ export async function cambiarEstado(id: string, hacia: EstadoSolicitud, actor: A
     });
     const severidad = hacia === 'RECHAZADA' ? 'ALERTA' : hacia === 'APROBADA' || hacia === 'CERRADA' ? 'EXITO' : 'INFO';
     await notificar(`${s.codigo}: ${ETIQUETA_ESTADO[hacia]}`, `"${s.titulo}" pasó a ${ETIQUETA_ESTADO[hacia].toLowerCase()}.`, `/solicitudes/${id}`, severidad);
+    if (hacia === 'ENVIADA') await avisarGestion(s.codigo, s.titulo, actor.nombre, id);
   });
   avisarCambioLocal();
 }

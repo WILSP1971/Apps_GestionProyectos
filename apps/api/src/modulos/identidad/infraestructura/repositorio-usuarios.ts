@@ -42,17 +42,35 @@ export class RepositorioUsuarios {
       [ext.email, ext.nombre, ext.avatar ?? null, ext.proveedor, ext.sub, process.env.DEPARTAMENTO_POR_DEFECTO ?? 'TI'],
     );
 
-    if (u.es_nuevo) {
-      const roles: Rol[] = correosAdmin().includes(ext.email)
-        ? ['SOLICITANTE', 'LIDER', 'DIRECTOR', 'ADMIN']
-        : ['SOLICITANTE'];
+    if (u.es_nuevo && correosAdmin().includes(ext.email)) {
       await db().query(
         `INSERT INTO gestion.usuario_roles(usuario_id, rol_id)
          SELECT $1, id FROM gestion.roles WHERE codigo = ANY($2::text[]) ON CONFLICT DO NOTHING`,
-        [u.id, roles],
+        [u.id, ['LIDER', 'DIRECTOR', 'ADMIN'] satisfies Rol[]],
       );
     }
+    await this.validarRol(u.id);
     return (await this.porId(u.id))!;
+  }
+
+  /**
+   * Validación del rol en cada inicio de sesión (misma regla que normalizarRoles de contratos):
+   *  - quien está registrado como ingeniero, líder, director o administrador NO es solicitante;
+   *  - cualquier otro correo (sin rol de equipo) queda como SOLICITANTE.
+   */
+  private async validarRol(usuarioId: string) {
+    await db().query(
+      `DELETE FROM gestion.usuario_roles ur USING gestion.roles r
+        WHERE ur.rol_id = r.id AND r.codigo = 'SOLICITANTE' AND ur.usuario_id = $1
+          AND EXISTS (SELECT 1 FROM gestion.usuario_roles ur2 JOIN gestion.roles r2 ON r2.id = ur2.rol_id
+                       WHERE ur2.usuario_id = $1 AND r2.codigo IN ('INGENIERO', 'LIDER', 'DIRECTOR', 'ADMIN'))`, [usuarioId]);
+    await db().query(
+      `INSERT INTO gestion.usuario_roles(usuario_id, rol_id)
+       SELECT $1, r.id FROM gestion.roles r
+        WHERE r.codigo = 'SOLICITANTE'
+          AND NOT EXISTS (SELECT 1 FROM gestion.usuario_roles ur JOIN gestion.roles r2 ON r2.id = ur.rol_id
+                           WHERE ur.usuario_id = $1 AND r2.codigo IN ('INGENIERO', 'LIDER', 'DIRECTOR', 'ADMIN'))
+       ON CONFLICT DO NOTHING`, [usuarioId]);
   }
 
   async porId(id: string): Promise<PerfilUsuario | null> {

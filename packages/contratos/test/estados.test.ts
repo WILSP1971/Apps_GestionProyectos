@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAQUINA_ESTADOS, transicionesDisponibles, ESTADOS_FINALES } from '../src/estados';
+import { MAQUINA_ESTADOS, transicionesDisponibles, ESTADOS_FINALES, normalizarRoles } from '../src/estados';
 
 test('un solicitante no puede aprobar', () => {
   const t = transicionesDisponibles('EN_REVISION', ['SOLICITANTE']).map((r) => r.hacia);
@@ -23,4 +23,11 @@ test('administrador, director y líder pueden regresar a desarrollo desde valida
     assert.equal(r.requiereComentario, true);
   }
   assert.equal(transicionesDisponibles('EN_VALIDACION', ['INGENIERO']).length, 0);
+});
+
+test('login: solicitante es todo correo que no es del equipo; los roles de equipo excluyen el de solicitante', () => {
+  assert.deepEqual(normalizarRoles([]), ['SOLICITANTE']);
+  assert.deepEqual(normalizarRoles(['SOLICITANTE']), ['SOLICITANTE']);
+  assert.deepEqual(normalizarRoles(['SOLICITANTE', 'INGENIERO']), ['INGENIERO']);
+  assert.deepEqual(normalizarRoles(['ADMIN', 'SOLICITANTE', 'DIRECTOR', 'LIDER']), ['LIDER', 'DIRECTOR', 'ADMIN']);
 });

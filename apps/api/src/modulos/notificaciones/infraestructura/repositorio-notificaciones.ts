@@ -41,8 +41,11 @@ export class RepositorioNotificaciones {
         params = [solicitanteId];
         break;
       case 'GESTORES':
+        // Panel de gestión: administrador, director y líder técnico activos
         sql = `SELECT DISTINCT ur.usuario_id AS id FROM gestion.usuario_roles ur
-                 JOIN gestion.roles r ON r.id = ur.rol_id WHERE r.codigo IN ('LIDER', 'DIRECTOR')`;
+                 JOIN gestion.roles r ON r.id = ur.rol_id
+                 JOIN gestion.usuarios u ON u.id = ur.usuario_id AND u.activo AND NOT u.eliminado
+                WHERE r.codigo IN ('ADMIN', 'LIDER', 'DIRECTOR')`;
         params = [];
         break;
       case 'ASIGNADOS':
@@ -98,14 +101,15 @@ export class RepositorioNotificaciones {
 
   async porId(id: string, usuarioId: string): Promise<EventoNotificacion | null> {
     const { rows: [n] } = await db().query(
-      `SELECT id, titulo, mensaje, coalesce(enlace, '/dashboard') AS enlace, severidad
+      `SELECT id, titulo, mensaje, coalesce(enlace, '/dashboard') AS enlace, severidad, tipo_evento AS tipo
          FROM gestion.notificaciones WHERE id = $1 AND usuario_id = $2`, [id, usuarioId]);
     return n ?? null;
   }
 
   async ultimas(usuarioId: string, limite = 50) {
     const { rows } = await db().query(
-      `SELECT id, titulo, mensaje, coalesce(enlace, '/dashboard') AS enlace, severidad, leida, creado_en AS "creadoEn"
+      `SELECT id, titulo, mensaje, coalesce(enlace, '/dashboard') AS enlace, severidad, leida, creado_en AS "creadoEn",
+              tipo_evento AS tipo
          FROM gestion.notificaciones WHERE usuario_id = $1 ORDER BY creado_en DESC LIMIT $2`, [usuarioId, limite]);
     return rows;
   }

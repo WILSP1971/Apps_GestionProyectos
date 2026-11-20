@@ -250,6 +250,19 @@ indicando el motivo; cada cambio queda en el *Historial de estados* del proyecto
 Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluacion/mis-tareas`,
 `POST /api/evaluacion/proyectos/:id/tareas`, `GET /api/proyectos/mios`, `GET /analitica/kpis/mi-desempeno`.
 
+### Roles al iniciar sesión, aviso de solicitud nueva y bandeja
+
+- **Solicitante** es todo correo que no esté registrado como ingeniero, líder, director o administrador. La API lo
+  valida en cada inicio de sesión y al editar usuarios (`normalizarRoles`): los roles de equipo excluyen el de
+  solicitante y quien no tiene ninguno queda como solicitante (migración 018 limpia los datos existentes).
+- Al **enviar** una solicitud, administrador, director y líder reciben la notificación *"Recibiste una solicitud
+  nueva"*: llega en tiempo real como **aviso modal** (y por la campana). Si no estaban conectados, el aviso aparece al
+  entrar mientras siga sin leer, y el dashboard muestra una alerta con las solicitudes nuevas por revisar.
+- Gestión ya no tiene *Nueva solicitud* en el menú ni el botón *+ Nueva solicitud*; puede crear solicitudes solo
+  dentro de un proyecto. La **Bandeja** muestra las solicitudes recibidas (sin borradores) con resumen por estado,
+  filtros, contador de nuevas en el menú y la acción *Tomar en revisión*.
+- **Configuración** no está disponible para director y líder (el administrador sí).
+
 ### Centro de trabajo del ingeniero (Registrar avances)
 
 `/avances` reúne en una sola vista: resumen (avance ponderado, pendientes, en progreso, vencidas, bloqueadas,
