@@ -18,6 +18,8 @@ const LOTE_PUSH = 50;
 const LIMITE_PULL = 200;
 const CURSORES_INICIALES: CursoresSync = { solicitudes: 0, comentarios: 0, notificaciones: 0 };
 
+const VERSION_DATOS = 2;
+
 export function aSolicitudLocal(s: SolicitudSync, pendiente = false): SolicitudLocal {
   const { eliminado: _e, seq: _s, ...resto } = s;
   return {
@@ -158,6 +160,12 @@ class MotorSync {
   }
 
   private async pull() {
+    // Cuando cambia la forma de los datos que baja el servidor, se vuelve a descargar todo una vez
+    // (v2: las solicitudes traen su proyecto)
+    if ((await dbLocal.meta.get('version-datos'))?.valor !== VERSION_DATOS) {
+      await dbLocal.meta.put({ clave: 'cursores', valor: CURSORES_INICIALES });
+      await dbLocal.meta.put({ clave: 'version-datos', valor: VERSION_DATOS });
+    }
     let cursores = ((await dbLocal.meta.get('cursores'))?.valor as CursoresSync | undefined) ?? CURSORES_INICIALES;
     for (let vuelta = 0; vuelta < 50; vuelta++) {
       const q = new URLSearchParams({

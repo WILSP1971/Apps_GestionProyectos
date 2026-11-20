@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, Loader2, Pencil, Plus, Trash2, WifiOff, X } from 'lucide-react';
+import { ChevronLeft, FilePlus2, Info, Loader2, Pencil, Plus, Trash2, WifiOff, X } from 'lucide-react';
 import {
   ESTADOS_PROYECTO, ETIQUETA_ESTADO, ETIQUETA_ESTADO_PROYECTO,
   type CatalogosProyecto, type DetalleProyecto, type EstadoProyecto,
@@ -18,13 +18,15 @@ import { dinero, fechaCorta, InsigniaEstadoProyecto, InsigniaSalud } from './com
 import { FormularioProyecto } from './formulario-proyecto';
 import { Gantt } from './gantt';
 import { PanelRiesgos } from './panel-riesgos';
+import { TareasProyecto } from './tareas-proyecto';
 
 const PESTANAS = [
+  // Orden de trabajo: resumen → solicitudes del proyecto → sus tareas y cronograma → riesgos → deuda técnica
   { clave: 'resumen', etiqueta: 'Resumen y finanzas' },
-  { clave: 'cronograma', etiqueta: 'Cronograma' },
+  { clave: 'solicitudes', etiqueta: 'Solicitudes' },
+  { clave: 'cronograma', etiqueta: 'Tareas y cronograma' },
   { clave: 'riesgos', etiqueta: 'Riesgos' },
   { clave: 'deuda', etiqueta: 'Deuda técnica' },
-  { clave: 'solicitudes', etiqueta: 'Solicitudes' },
 ] as const;
 type Pestana = (typeof PESTANAS)[number]['clave'];
 
@@ -128,7 +130,12 @@ export function DetalleProyectoPanel() {
 
       {pestana === 'resumen' && <Resumen p={p} />}
       {pestana === 'cronograma' && (
-        <Tarjeta cuerpoClassName="p-0"><Gantt solicitudes={p.solicitudesDetalle} inicioPlan={p.fechaInicio} finPlan={p.fechaFinPlan} /></Tarjeta>
+        <div className="space-y-5">
+          <Tarjeta cuerpoClassName="p-0">
+            <Gantt solicitudes={p.solicitudesDetalle} tareasProyecto={p.tareasProyecto} inicioPlan={p.fechaInicio} finPlan={p.fechaFinPlan} />
+          </Tarjeta>
+          <TareasProyecto proyecto={p} catalogos={catalogos} fuente={fuente} alCambiar={recargar} />
+        </div>
       )}
       {pestana === 'riesgos' && <PanelRiesgos proyecto={p} responsables={catalogos?.responsables ?? []} fuente={fuente} alCambiar={recargar} />}
       {pestana === 'deuda' && <PanelDeuda p={p} fuente={fuente} alCambiar={recargar} />}
@@ -312,6 +319,7 @@ function PanelDeuda({ p, fuente, alCambiar }: { p: DetalleProyecto; fuente: Fuen
 
 // ---------------------------------------------------------------------
 function PanelSolicitudes({ p, catalogos, fuente, alCambiar }: { p: DetalleProyecto; catalogos: CatalogosProyecto | null; fuente: FuenteProyectos; alCambiar: () => Promise<void> }) {
+  const abierto = !['CERRADO', 'CANCELADO'].includes(p.estado);
   const [agregando, setAgregando] = useState(false);
   const [seleccion, setSeleccion] = useState<string[]>([]);
   const [q, setQ] = useState('');
@@ -332,7 +340,19 @@ function PanelSolicitudes({ p, catalogos, fuente, alCambiar }: { p: DetalleProye
 
   return (
     <Tarjeta titulo={`Solicitudes del proyecto (${p.solicitudes})`} cuerpoClassName="p-0"
-      acciones={p.permisos.editar && !agregando && <Boton tamano="sm" variante="secundario" onClick={() => setAgregando(true)}><Plus className="size-4" /> Agregar solicitudes</Boton>}>
+      acciones={p.permisos.editar && !agregando && abierto && (
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/solicitudes/nueva?${new URLSearchParams({ proyecto: p.id, pcodigo: p.codigo, pnombre: p.nombre })}`}>
+            <Boton tamano="sm"><FilePlus2 className="size-4" /> Nueva solicitud en este proyecto</Boton>
+          </Link>
+          <Boton tamano="sm" variante="secundario" onClick={() => setAgregando(true)}><Plus className="size-4" /> Agregar existentes</Boton>
+        </div>
+      )}>
+      <p className="flex items-start gap-2 border-b border-borde/60 px-5 py-2.5 text-xs text-atenuado">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        Los requerimientos <b className="font-medium text-texto">funcionales</b> deben estar en un proyecto para poder asignarles equipo,
+        y no se pueden quitar mientras estén en ejecución. Mejoras, incidentes, cambios y tareas técnicas pueden trabajarse sueltos.
+      </p>
       {agregando && (
         <div className="border-b border-borde/60 bg-fondo/30 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">

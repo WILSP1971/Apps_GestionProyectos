@@ -46,7 +46,9 @@ async function notificar(titulo: string, mensaje: string, enlace: string, severi
   await dbLocal.notificaciones.add({ id: nuevoId(), titulo, mensaje, enlace, severidad, leida: 0, creadoEn: ahora() });
 }
 
-export async function crearSolicitud(datos: NuevaSolicitud, actor: Actor): Promise<string> {
+export async function crearSolicitud(
+  datos: NuevaSolicitud, actor: Actor, proyecto?: { id: string; codigo?: string | null; nombre?: string | null },
+): Promise<string> {
   const v = esquemaNuevaSolicitud.parse(datos);
   const id = v.id ?? nuevoId();
   const fecha = ahora();
@@ -63,6 +65,9 @@ export async function crearSolicitud(datos: NuevaSolicitud, actor: Actor): Promi
     estado,
     avancePct: 0,
     departamento: actor.departamento,
+    proyectoId: v.proyectoId ?? null,
+    proyectoCodigo: v.proyectoId ? proyecto?.codigo ?? null : null,
+    proyectoNombre: v.proyectoId ? proyecto?.nombre ?? null : null,
     solicitanteId: actor.id,
     solicitanteNombre: actor.nombre,
     fechaDeseada: v.fechaDeseada || undefined,

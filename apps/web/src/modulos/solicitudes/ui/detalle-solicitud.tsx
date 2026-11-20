@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
   AlertTriangle, ArrowLeft, CalendarDays, Check, CheckCircle2, CloudUpload, FileQuestion, MessageSquare, RotateCcw, Send, UsersRound, X,
 } from 'lucide-react';
-import { ETIQUETA_ESTADO, ETIQUETA_TIPO, transicionesDisponibles, type EstadoSolicitud, type ReglaTransicion } from '@sierraflow/contratos';
+import { ETIQUETA_ESTADO, ETIQUETA_TIPO, requiereProyecto, transicionesDisponibles, type EstadoSolicitud, type ReglaTransicion } from '@sierraflow/contratos';
 import { dbLocal, type ConflictoLocal } from '@/lib/offline/db';
 import { cn, fecha, fechaHora, haceTiempo } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton, Tarjeta, Vacio } from '@/componentes/ui/primitivos';
@@ -120,8 +120,11 @@ export function DetalleSolicitud() {
   const acciones = transicionesDisponibles(s.estado, actor.roles);
   const criteriosEditables = ['EN_DESARROLLO', 'EN_VALIDACION'].includes(s.estado);
   // Avance por tareas y calificación: líderes/directores y el propio equipo asignado
+  const esGestor = actor.roles.some((r) => r === 'LIDER' || r === 'DIRECTOR' || r === 'ADMIN');
   const veAvance = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION', 'CERRADA'].includes(s.estado)
-    && (actor.roles.some((r) => r === 'LIDER' || r === 'DIRECTOR' || r === 'ADMIN') || s.asignados.some((a) => a.usuarioId === actor.id));
+    && (esGestor || s.asignados.some((a) => a.usuarioId === actor.id));
+  // Regla 1: aviso al líder cuando un requerimiento funcional aprobado aún no tiene proyecto
+  const faltaProyecto = esGestor && s.estado === 'APROBADA' && requiereProyecto(s.tipo) && !s.proyectoId;
 
   const ejecutar = async (regla: ReglaTransicion, comentario?: string) => {
     try {
@@ -149,10 +152,18 @@ export function DetalleSolicitud() {
           {s.pendienteSync === 1 && <span className="ml-2 inline-flex items-center gap-1 text-amber-300"><CloudUpload className="size-3.5" />pendiente de sincronizar</span>}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">{s.titulo}</h1>
-        <div className="mt-4 grid gap-4 border-t border-borde/70 pt-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,auto)_1fr] lg:items-center lg:gap-8">
+        <div className={cn('mt-4 grid gap-4 border-t border-borde/70 pt-4 sm:grid-cols-2 lg:items-center lg:gap-8',
+          s.proyectoId ? 'lg:grid-cols-[repeat(5,auto)_1fr]' : 'lg:grid-cols-[repeat(4,auto)_1fr]')}>
           <div><p className="etiqueta">Estado</p><InsigniaEstado estado={s.estado} /></div>
           <div><p className="etiqueta">Prioridad</p><InsigniaPrioridad prioridad={s.prioridad} /></div>
           <div><p className="etiqueta">Tipo</p><p className="text-sm">{ETIQUETA_TIPO[s.tipo]}</p></div>
+          {s.proyectoId && (
+            <div><p className="etiqueta">Proyecto</p>
+              {esGestor ? (
+                <Link href={`/proyectos/${s.proyectoId}`} className="text-sm text-primario hover:underline">{s.proyectoCodigo ?? ''} {s.proyectoNombre ?? 'Ver proyecto'}</Link>
+              ) : <p className="text-sm">{s.proyectoCodigo ?? ''} {s.proyectoNombre ?? ''}</p>}
+            </div>
+          )}
           <div><p className="etiqueta">Solicitante</p><p className="text-sm">{s.solicitanteNombre} · <span className="text-atenuado">{s.departamento}</span></p></div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
             {acciones.map((r) => (
@@ -163,6 +174,13 @@ export function DetalleSolicitud() {
             ))}
           </div>
         </div>
+
+        {faltaProyecto && (
+          <p className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-100">
+            Es un requerimiento <b>funcional</b>: antes de asignar el equipo agrégalo a un proyecto en{' '}
+            <Link href="/proyectos" className="font-medium text-primario hover:underline">Proyectos</Link> → Solicitudes → Agregar existentes.
+          </p>
+        )}
 
         {accion && (
           <div className="mt-4 rounded-lg border border-borde-fuerte bg-fondo/60 p-4">

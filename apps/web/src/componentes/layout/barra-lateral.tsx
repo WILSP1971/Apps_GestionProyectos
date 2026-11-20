@@ -3,46 +3,80 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, ClipboardCheck, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, Settings, UserCog, UsersRound, Workflow,
+  BarChart3, ClipboardCheck, ClipboardList, FilePlus2, FolderKanban, HelpCircle, Inbox, LayoutDashboard, ListChecks, Settings,
+  UserCog, UsersRound, Workflow,
 } from 'lucide-react';
 import type { Rol } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { useUsuario } from './proveedores';
+import { perfilDe, type Perfil } from './perfil';
 
 interface Item { href: string; etiqueta: string; icono: React.ElementType; roles?: Rol[] }
+type Seccion = { titulo?: string; items: Item[] };
 
-const SECCIONES: { titulo?: string; items: Item[] }[] = [
-  {
-    items: [
-      { href: '/dashboard', etiqueta: 'Dashboard', icono: LayoutDashboard },
-      { href: '/solicitudes/nueva', etiqueta: 'Nueva solicitud', icono: FilePlus2 },
-      { href: '/mis-solicitudes', etiqueta: 'Mis solicitudes', icono: ClipboardList },
-    ],
-  },
-  {
-    titulo: 'Gestión',
-    items: [
-      { href: '/solicitudes', etiqueta: 'Bandeja de solicitudes', icono: Inbox, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/gestion/asignacion', etiqueta: 'Asignación', icono: UsersRound, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/gestion/kanban', etiqueta: 'Kanban', icono: Workflow, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/gestion/evaluacion', etiqueta: 'Evaluación', icono: ClipboardCheck, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/proyectos', etiqueta: 'Proyectos', icono: FolderKanban, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-      { href: '/reportes', etiqueta: 'Reportes', icono: BarChart3, roles: ['LIDER', 'DIRECTOR', 'ADMIN'] },
-    ],
-  },
-  {
-    titulo: 'Cuenta',
-    items: [
-      { href: '/administracion/usuarios', etiqueta: 'Usuarios y equipos', icono: UserCog, roles: ['ADMIN'] },
-      { href: '/configuracion', etiqueta: 'Configuración', icono: Settings },
-      { href: '/ayuda', etiqueta: 'Ayuda', icono: HelpCircle },
-    ],
-  },
-];
+const CUENTA: Seccion = {
+  titulo: 'Cuenta',
+  items: [
+    { href: '/administracion/usuarios', etiqueta: 'Usuarios y equipos', icono: UserCog, roles: ['ADMIN'] },
+    { href: '/configuracion', etiqueta: 'Configuración', icono: Settings },
+    { href: '/ayuda', etiqueta: 'Ayuda', icono: HelpCircle },
+  ],
+};
+
+/** Menú de cada perfil. Gestión sigue el orden de trabajo: proyecto → solicitudes → equipo y tareas → análisis. */
+const MENUS: Record<Perfil, Seccion[]> = {
+  SOLICITANTE: [
+    {
+      items: [
+        { href: '/dashboard', etiqueta: 'Dashboard', icono: LayoutDashboard },
+        { href: '/solicitudes/nueva', etiqueta: 'Nueva solicitud', icono: FilePlus2 },
+        { href: '/mis-solicitudes', etiqueta: 'Mis solicitudes', icono: ClipboardList },
+      ],
+    },
+    CUENTA,
+  ],
+  INGENIERO: [
+    {
+      items: [
+        { href: '/dashboard', etiqueta: 'Dashboard', icono: LayoutDashboard },
+        { href: '/mis-asignaciones', etiqueta: 'Mis solicitudes y proyectos', icono: ClipboardList },
+        { href: '/avances', etiqueta: 'Registrar avances', icono: ListChecks },
+        { href: '/reportes', etiqueta: 'Reportes', icono: BarChart3 },
+      ],
+    },
+    CUENTA,
+  ],
+  GESTION: [
+    { items: [{ href: '/dashboard', etiqueta: 'Dashboard', icono: LayoutDashboard }] },
+    {
+      titulo: 'Proyectos',
+      items: [{ href: '/proyectos', etiqueta: 'Proyectos', icono: FolderKanban }],
+    },
+    {
+      titulo: 'Solicitudes',
+      items: [
+        { href: '/solicitudes/nueva', etiqueta: 'Nueva solicitud', icono: FilePlus2 },
+        { href: '/mis-solicitudes', etiqueta: 'Mis solicitudes', icono: ClipboardList },
+        { href: '/solicitudes', etiqueta: 'Bandeja de solicitudes', icono: Inbox },
+      ],
+    },
+    {
+      titulo: 'Gestión',
+      items: [
+        { href: '/gestion/asignacion', etiqueta: 'Asignación', icono: UsersRound },
+        { href: '/gestion/kanban', etiqueta: 'Kanban', icono: Workflow },
+        { href: '/gestion/evaluacion', etiqueta: 'Evaluación y tareas', icono: ClipboardCheck },
+      ],
+    },
+    { titulo: 'Análisis', items: [{ href: '/reportes', etiqueta: 'Reportes', icono: BarChart3 }] },
+    CUENTA,
+  ],
+};
 
 export function BarraLateral() {
   const ruta = usePathname();
   const { rolesVista } = useUsuario();
+  const secciones = MENUS[perfilDe(rolesVista)];
   const activo = (href: string) =>
     href === '/solicitudes' ? ruta === '/solicitudes' : ruta === href || (ruta.startsWith(href + '/') && href !== '/solicitudes/nueva');
 
@@ -55,7 +89,7 @@ export function BarraLateral() {
         </span>
       </Link>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6" aria-label="Navegación principal">
-        {SECCIONES.map((sec, i) => {
+        {secciones.map((sec, i) => {
           const visibles = sec.items.filter((it) => !it.roles || it.roles.some((r) => rolesVista.includes(r)));
           if (!visibles.length) return null;
           return (

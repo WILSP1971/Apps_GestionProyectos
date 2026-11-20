@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2, Search, Sparkles, UsersRound, WifiOff } from 'lucide-react';
+import { CheckCircle2, FolderKanban, Loader2, Search, Sparkles, UsersRound, WifiOff } from 'lucide-react';
 import {
-  ETIQUETA_ROL_SOLICITUD, ROLES_EN_SOLICITUD, type EstadoSolicitud, type GrupoTrabajo, type IngenieroCarga, type RolEnSolicitud,
+  ETIQUETA_ROL_SOLICITUD, requiereProyecto, ROLES_EN_SOLICITUD, type EstadoSolicitud, type GrupoTrabajo, type IngenieroCarga, type RolEnSolicitud,
 } from '@sierraflow/contratos';
 import { dbLocal, type SolicitudLocal } from '@/lib/offline/db';
 import { cn } from '@/lib/utils';
@@ -118,6 +118,8 @@ export function PanelAsignacion() {
   };
 
   const totalSel = gruposSel.length + Object.keys(ingSel).length;
+  // Regla 1: un requerimiento funcional aprobado no se asigna si no está en un proyecto
+  const faltaProyecto = !!seleccionada && seleccionada.estado === 'APROBADA' && requiereProyecto(seleccionada.tipo) && !seleccionada.proyectoId;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[340px_1fr]">
@@ -149,8 +151,11 @@ export function PanelAsignacion() {
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm">{s.titulo}</p>
                 <p className="mt-0.5 truncate text-[11px] text-atenuado">
-                  {s.departamento}{s.asignados.length ? ` · ${s.asignados.map((a) => a.nombre).join(', ')}` : ''}
+                  {s.proyectoCodigo ? `${s.proyectoCodigo} · ` : ''}{s.departamento}{s.asignados.length ? ` · ${s.asignados.map((a) => a.nombre).join(', ')}` : ''}
                 </p>
+                {s.estado === 'APROBADA' && requiereProyecto(s.tipo) && !s.proyectoId && (
+                  <p className="mt-1 text-[11px] text-amber-200">Requiere proyecto antes de asignar</p>
+                )}
               </button>
             </li>
           ))}
@@ -266,7 +271,15 @@ export function PanelAsignacion() {
                 <p>{gruposSel.length} grupo(s) · {Object.keys(ingSel).length} ingeniero(s)</p>
                 {seleccionada.estado === 'APROBADA' && <p className="mt-1">La solicitud pasará a <span className="text-teal-300">Asignada</span> y el equipo recibirá un aviso.</p>}
               </div>
-              <Boton className="mt-4 w-full" onClick={confirmar} disabled={guardando || totalSel === 0}>
+              {faltaProyecto && (
+                <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+                  <p className="flex items-center gap-1.5 font-medium"><FolderKanban className="size-4" /> Falta el proyecto</p>
+                  <p className="mt-1">Es un requerimiento <b>funcional</b>: agrégalo a un proyecto antes de asignar el equipo
+                    (Proyectos → el proyecto → Solicitudes → Agregar existentes).</p>
+                  <Link href="/proyectos" className="mt-2 inline-block font-medium text-primario hover:underline">Ir a Proyectos →</Link>
+                </div>
+              )}
+              <Boton className="mt-4 w-full" onClick={confirmar} disabled={guardando || totalSel === 0 || faltaProyecto}>
                 {guardando && <Loader2 className="size-4 animate-spin" />}
                 {seleccionada.estado === 'APROBADA' ? 'Confirmar asignación y actualizar estado' : 'Actualizar equipo'}
               </Boton>

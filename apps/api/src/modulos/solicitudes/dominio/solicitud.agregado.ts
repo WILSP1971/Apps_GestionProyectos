@@ -5,6 +5,8 @@ import { buscarRegla, EstadoSolicitud } from './estado-solicitud.vo';
 
 export type Prioridad = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
 export type TipoSolicitud = 'FUNCIONAL' | 'TECNICA' | 'MEJORA' | 'INCIDENTE' | 'CAMBIO';
+/** Regla 1: mismo valor que TIPOS_REQUIEREN_PROYECTO de @sierraflow/contratos (el dominio no depende de paquetes). */
+const requiereProyecto = (tipo: TipoSolicitud) => tipo === 'FUNCIONAL';
 
 export interface CriterioAceptacion {
   id: string;
@@ -89,6 +91,10 @@ export class Solicitud extends AgregadoRaiz<PropsSolicitud> {
     }
     if (hacia === 'ENVIADA' && this.props.criterios.length === 0) {
       throw new ErrorDominio('SIN_CRITERIOS', 'Agregue al menos un criterio de aceptación antes de enviar');
+    }
+    if (hacia === 'ASIGNADA' && requiereProyecto(this.props.tipo) && !this.props.proyectoId) {
+      throw new ErrorDominio('REQUIERE_PROYECTO',
+        'Los requerimientos funcionales deben pertenecer a un proyecto antes de asignar el equipo. Agrégalo desde Proyectos → Solicitudes.');
     }
     if (hacia === 'CERRADA' && this.props.criterios.some((c) => !c.cumplido)) {
       throw new ErrorDominio('CRITERIOS_PENDIENTES', 'Todos los criterios de aceptación deben estar cumplidos para cerrar');

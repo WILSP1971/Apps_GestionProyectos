@@ -14,6 +14,7 @@ import { marcarNotificacionLeida, marcarTodasLeidas } from '@/modulos/notificaci
 import { Boton } from '@/componentes/ui/primitivos';
 import { MenuUsuario } from './menu-usuario';
 import { useUsuario } from './proveedores';
+import { creaSolicitudes } from './perfil';
 
 const VISTAS: { etiqueta: string; roles: Rol[] }[] = [
   { etiqueta: 'Todos los roles', roles: ['SOLICITANTE', 'INGENIERO', 'LIDER', 'DIRECTOR'] },
@@ -186,9 +187,11 @@ export function BarraSuperior() {
         )}
         <Campana />
         <MenuUsuario />
-        <Link href="/solicitudes/nueva">
-          <Boton tamano="sm"><Plus className="size-4" /> <span className="hidden md:inline">Crear nueva solicitud</span></Boton>
-        </Link>
+        {creaSolicitudes(rolesVista) && (
+          <Link href="/solicitudes/nueva">
+            <Boton tamano="sm"><Plus className="size-4" /> <span className="hidden md:inline">Crear nueva solicitud</span></Boton>
+          </Link>
+        )}
       </div>
     </header>
   );

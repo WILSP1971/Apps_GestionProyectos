@@ -28,6 +28,13 @@ export class ProyectosController {
     return this.repo.listado();
   }
 
+  /** Proyectos en los que participa quien consulta (menú del ingeniero). */
+  @Get('mios')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  mios(@Usuario() u: UsuarioActual) {
+    return this.repo.mios(u.id);
+  }
+
   @Get('catalogos')
   catalogos() {
     return this.repo.catalogos(null);

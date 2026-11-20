@@ -224,6 +224,25 @@ La API ahora: limita peticiones por IP (`LIMITE_PETICIONES_MIN`, `LIMITE_AUTH_MI
 confía solo en el proxy local para la IP del cliente y no arranca en producción si faltan secretos indispensables.
 Guion manual de pruebas sin conexión: [`docs/pruebas/E2E_sin_conexion.md`](docs/pruebas/E2E_sin_conexion.md).
 
+### Reglas proyecto ↔ solicitud y menú por rol
+
+1. **Los requerimientos funcionales van en un proyecto:** una solicitud de tipo *Funcional* no pasa a *Asignada*
+   sin proyecto, y no se puede quitar del proyecto mientras está en ejecución. Mejoras, incidentes, cambios y
+   tareas técnicas pueden trabajarse sueltas (`TIPOS_REQUIEREN_PROYECTO` en `packages/contratos/src/solicitudes.ts`).
+2. **Crear solicitudes desde el proyecto:** *Proyecto → Solicitudes → Nueva solicitud en este proyecto*
+   (abre el asistente con `?proyecto=`). Solo líderes, directores y administradores.
+3. **Tareas propias del proyecto:** actividades sin solicitud (gestión, capacitación, despliegue) en
+   *Proyecto → Tareas y cronograma*. Suman al avance, horas, costo y Gantt (migración 014).
+
+| Perfil | Menú |
+|---|---|
+| Solicitante | Dashboard · Nueva solicitud · Mis solicitudes |
+| Ingeniero | Dashboard · Mis solicitudes y proyectos · Registrar avances · Reportes (su desempeño) |
+| Líder, Director, Administrador | Dashboard · Proyectos · Solicitudes (nueva, mías, bandeja) · Gestión (asignación, Kanban, evaluación) · Reportes · Cuenta |
+
+Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluacion/mis-tareas`,
+`POST /api/evaluacion/proyectos/:id/tareas`, `GET /api/proyectos/mios`, `GET /analitica/kpis/mi-desempeno`.
+
 ## 8. Pruebas
 
 ```bash

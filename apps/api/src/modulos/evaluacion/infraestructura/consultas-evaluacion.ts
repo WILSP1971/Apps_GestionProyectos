@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  calcularFrentes, type ContextoEvaluacion, type CriterioCalificacion, type EvaluacionVista, type ResumenEvaluable, type TareaVista,
+  calcularFrentes, type ContextoEvaluacion, type CriterioCalificacion, type EvaluacionVista, type MiTarea, type ResumenEvaluable, type TareaVista,
 } from '@sierraflow/contratos';
 import { NoEncontrado, SinPermiso } from '../../../compartido/dominio/errores';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
@@ -66,11 +66,39 @@ export class ConsultasEvaluacion {
     return rows;
   }
 
-  async tarea(id: string): Promise<(TareaVista & { solicitudId: string }) | null> {
+  async tarea(id: string): Promise<(TareaVista & { solicitudId: string | null; proyectoId: string | null }) | null> {
     const { rows } = await db().query(
-      `SELECT ${COLUMNAS_TAREA}, t.solicitud_id AS "solicitudId" ${DESDE_TAREA}
+      `SELECT ${COLUMNAS_TAREA}, t.solicitud_id AS "solicitudId", t.proyecto_id AS "proyectoId" ${DESDE_TAREA}
         WHERE t.id = $1 AND NOT t.eliminado`, [id]);
     return rows[0] ?? null;
+  }
+
+  /** Regla 3: tareas propias de un proyecto. */
+  async tareasDeProyecto(proyectoId: string): Promise<TareaVista[]> {
+    const { rows } = await db().query(
+      `SELECT ${COLUMNAS_TAREA} ${DESDE_TAREA}
+        WHERE t.proyecto_id = $1 AND NOT t.eliminado
+        ORDER BY t.fecha_inicio NULLS LAST, t.creado_en`, [proyectoId]);
+    return rows;
+  }
+
+  /** "Registrar avances": tareas de las que la persona es responsable, con su solicitud o proyecto. */
+  async misTareas(usuarioId: string): Promise<MiTarea[]> {
+    const { rows } = await db().query(
+      `SELECT ${COLUMNAS_TAREA},
+              t.solicitud_id AS "solicitudId", s.codigo AS "solicitudCodigo", s.titulo AS "solicitudTitulo",
+              coalesce(t.proyecto_id, s.proyecto_id) AS "proyectoId", p.codigo AS "proyectoCodigo", p.nombre AS "proyectoNombre",
+              CASE WHEN t.solicitud_id IS NOT NULL THEN s.estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION')
+                   ELSE p.estado NOT IN ('CERRADO','CANCELADO') END AS editable
+        ${DESDE_TAREA}
+         LEFT JOIN gestion.solicitudes s ON s.id = t.solicitud_id AND NOT s.eliminado
+         LEFT JOIN gestion.proyectos p ON p.id = coalesce(t.proyecto_id, s.proyecto_id) AND NOT p.eliminado
+        WHERE t.responsable_id = $1 AND NOT t.eliminado
+          AND (t.solicitud_id IS NULL OR s.id IS NOT NULL)
+          AND (t.estado <> 'COMPLETADA' OR t.actualizado_en > now() - interval '30 days')
+        ORDER BY (t.estado = 'COMPLETADA'), t.fecha_fin_plan NULLS LAST, t.creado_en
+        LIMIT 300`, [usuarioId]);
+    return rows;
   }
 
   async evaluaciones(solicitudId: string): Promise<EvaluacionVista[]> {

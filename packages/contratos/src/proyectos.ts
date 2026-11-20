@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { EstadoSolicitud } from './estados';
 import type { Finanzas, ResultadoSalud } from './pm';
+import type { TareaVista } from './evaluacion';
 
 /** Proyectos, riesgos y deuda técnica (Sprint 7 · PM Suite). */
 export const ESTADOS_PROYECTO = ['PLANEACION', 'EN_EJECUCION', 'EN_PAUSA', 'CERRADO', 'CANCELADO'] as const;
@@ -152,6 +153,8 @@ export interface DetalleProyecto extends ResumenProyecto {
   horasEstimadas: number;
   version: number;
   solicitudesDetalle: SolicitudDeProyecto[];
+  /** Regla 3: tareas propias del proyecto (gestión, capacitación, despliegue…), sin solicitud */
+  tareasProyecto: TareaVista[];
   riesgos: RiesgoVista[];
   deuda: DeudaVista[];
   permisos: { editar: boolean };
@@ -161,5 +164,6 @@ export interface CatalogosProyecto {
   departamentos: { id: string; nombre: string }[];
   directores: { id: string; nombre: string }[];
   responsables: { id: string; nombre: string }[];
+  grupos: { id: string; nombre: string }[];
   solicitudesDisponibles: { id: string; codigo: string; titulo: string; estado: EstadoSolicitud; departamento: string }[];
 }

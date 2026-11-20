@@ -1,6 +1,6 @@
 import {
   calcularFrentes, ESTADOS_CON_TAREAS, ESTADOS_EVALUABLES, letraCalificacion, notaGlobal, promedio1a5,
-  type CambioTarea, type ContextoEvaluacion, type CriterioCalificacion, type EvaluacionVista, type NuevaEvaluacion,
+  type CambioTarea, type ContextoEvaluacion, type CriterioCalificacion, type EvaluacionVista, type MiTarea, type NuevaEvaluacion,
   type NuevaTarea, type ResumenEvaluable, type TareaVista,
 } from '@sierraflow/contratos';
 import { apiFetch } from '@/lib/api';
@@ -19,6 +19,8 @@ export interface FuenteEvaluacion {
   actualizarTarea(tareaId: string, datos: CambioTarea): Promise<TareaVista>;
   eliminarTarea(tareaId: string, version: number): Promise<void>;
   evaluar(solicitudId: string, datos: NuevaEvaluacion, evaluador: string): Promise<EvaluacionVista>;
+  /** Tareas de las que es responsable quien consulta (pantalla "Registrar avances"). */
+  misTareas(usuarioId: string): Promise<MiTarea[]>;
 }
 
 export const fuenteApi: FuenteEvaluacion = {
@@ -39,6 +41,7 @@ export const fuenteApi: FuenteEvaluacion = {
     motorSync.programar(300);
   },
   evaluar: (id, datos) => apiFetch(`/evaluacion/solicitudes/${id}/evaluaciones`, { method: 'POST', body: datos }),
+  misTareas: () => apiFetch('/evaluacion/mis-tareas'),
 };
 
 // ---------------------------------------------------------------------
@@ -208,6 +211,23 @@ export const fuenteDemo: FuenteEvaluacion = {
     const { s, datos, i } = await buscarTarea(tareaId);
     datos.tareas.splice(i, 1);
     await guardarTareas(s, datos);
+  },
+
+  async misTareas(usuarioId) {
+    const lista = await dbLocal.solicitudes.where('estado').anyOf(['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION', 'CERRADA']).toArray();
+    const todas: MiTarea[] = [];
+    for (const s of lista) {
+      for (const t of (await leer(s)).tareas) {
+        todas.push({
+          ...t, solicitudId: s.id, solicitudCodigo: s.codigo, solicitudTitulo: s.titulo,
+          proyectoId: s.proyectoId ?? null, proyectoCodigo: s.proyectoCodigo ?? null, proyectoNombre: s.proyectoNombre ?? null,
+          editable: ESTADOS_CON_TAREAS.includes(s.estado),
+        });
+      }
+    }
+    // En demo los responsables son ingenieros ficticios: si ninguna tarea es del usuario, se muestran todas
+    const propias = todas.filter((t) => t.responsableId === usuarioId);
+    return propias.length ? propias : todas;
   },
 
   async evaluar(id, datos, evaluador) {

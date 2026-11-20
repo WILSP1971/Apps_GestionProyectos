@@ -30,6 +30,10 @@ export interface SolicitudLocal {
   avancePct: number;
   departamento: string;
   departamentoColor?: string;
+  /** Proyecto al que pertenece (null o ausente = solicitud suelta) */
+  proyectoId?: string | null;
+  proyectoCodigo?: string | null;
+  proyectoNombre?: string | null;
   solicitanteId: string;
   solicitanteNombre: string;
   fechaDeseada?: string;

@@ -10,6 +10,14 @@ export type Prioridad = (typeof PRIORIDADES)[number];
 export const ETIQUETA_TIPO: Record<TipoSolicitud, string> = {
   FUNCIONAL: 'Funcional', TECNICA: 'Técnica', MEJORA: 'Mejora', INCIDENTE: 'Incidente', CAMBIO: 'Cambio',
 };
+/**
+ * Regla 1 (proyectos): los requerimientos funcionales son desarrollos de software que deben
+ * gestionarse dentro de un proyecto. No pueden pasar a ASIGNADA sin proyecto.
+ * Ajustes, incidentes, cambios y tareas técnicas pueden trabajarse sueltos.
+ */
+export const TIPOS_REQUIEREN_PROYECTO: readonly TipoSolicitud[] = ['FUNCIONAL'];
+export const requiereProyecto = (tipo: TipoSolicitud) => TIPOS_REQUIEREN_PROYECTO.includes(tipo);
+
 export const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
   BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica',
 };

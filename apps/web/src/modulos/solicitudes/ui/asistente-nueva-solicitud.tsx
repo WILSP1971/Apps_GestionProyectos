@@ -1,20 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useFieldArray, useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { toast } from 'sonner';
-import { AlertCircle, Check, CopyCheck, Plus, Save, Send, Sparkles, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, CopyCheck, FolderKanban, Info, Plus, Save, Send, Sparkles, Trash2, X } from 'lucide-react';
 import {
   esquemaNuevaSolicitud, ETIQUETA_PRIORIDAD, ETIQUETA_TIPO, PRIORIDADES, TIPOS_SOLICITUD, type NuevaSolicitud,
 } from '@sierraflow/contratos';
 import { dbLocal } from '@/lib/offline/db';
 import { cn, nuevoId } from '@/lib/utils';
 import { Boton, Tarjeta } from '@/componentes/ui/primitivos';
-import { useActor } from '@/componentes/layout/proveedores';
+import { useActor, useUsuario } from '@/componentes/layout/proveedores';
+import { fuenteDemo as proyectosDemo } from '@/modulos/proyectos/infraestructura/fuente-proyectos';
 import { buscarSimilares, crearSolicitud } from '../aplicacion/casos-uso';
 import { InsigniaPrioridad } from './insignias';
 
@@ -192,7 +193,13 @@ export function AsistenteNuevaSolicitud() {
   const [enviando, setEnviando] = useState(false);
   const [similares, setSimilares] = useState<Awaited<ReturnType<typeof buscarSimilares>>>([]);
   const actor = useActor();
+  const { modoDemo } = useUsuario();
   const router = useRouter();
+  const params = useSearchParams();
+  // Regla 2: creada desde un proyecto (/solicitudes/nueva?proyecto=<id>&pcodigo=…&pnombre=…)
+  const proyecto = params.get('proyecto')
+    ? { id: params.get('proyecto')!, codigo: params.get('pcodigo'), nombre: params.get('pnombre') }
+    : null;
   const form = useForm<Formulario>({ resolver: zodResolver(esquemaNuevaSolicitud), defaultValues: VALORES_INICIALES, mode: 'onTouched' });
   const titulo = form.watch('titulo');
 
@@ -230,7 +237,9 @@ export function AsistenteNuevaSolicitud() {
     try {
       // El orden se renumera aquí para que quede consecutivo aunque se hayan quitado criterios
       const criterios = (v.criterios ?? []).map((c, i) => ({ ...c, orden: i + 1, cumplido: false }));
-      const id = await crearSolicitud({ ...(v as NuevaSolicitud), criterios, enviar }, actor);
+      const id = await crearSolicitud(
+        { ...(v as NuevaSolicitud), criterios, enviar, ...(proyecto ? { proyectoId: proyecto.id } : {}) }, actor, proyecto ?? undefined);
+      if (proyecto && modoDemo) await proyectosDemo.vincular(proyecto.id, [id], []).catch(() => undefined);
       await dbLocal.meta.delete(CLAVE_BORRADOR);
       toast.success(enviar
         ? navigator.onLine ? 'Solicitud enviada para revisión' : 'Guardada sin conexión: se enviará al reconectar'
@@ -245,6 +254,21 @@ export function AsistenteNuevaSolicitud() {
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
       <Tarjeta>
+        {proyecto && (
+          <div className="mb-5 flex items-center gap-3 rounded-lg border border-primario/40 bg-primario/10 px-4 py-3 text-sm">
+            <FolderKanban className="size-5 shrink-0 text-primario" />
+            <p className="flex-1">Esta solicitud quedará dentro del proyecto{' '}
+              <b>{proyecto.codigo ? `${proyecto.codigo} · ` : ''}{proyecto.nombre ?? 'seleccionado'}</b>.</p>
+            <button type="button" onClick={() => router.replace('/solicitudes/nueva')} className="rounded p-1 text-atenuado hover:text-texto"
+              aria-label="Crear sin proyecto"><X className="size-4" /></button>
+          </div>
+        )}
+        {!proyecto && form.watch('tipo') === 'FUNCIONAL' && (
+          <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-xs text-sky-100">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <p>Los requerimientos <b>funcionales</b> se gestionan dentro de un proyecto: el líder técnico lo asociará a uno antes de asignar el equipo.</p>
+          </div>
+        )}
         <Stepper actual={paso} irA={setPaso} />
         <h2 className="mb-5 text-lg font-semibold">{PASOS[paso]!.titulo}</h2>
         <form onSubmit={(e) => e.preventDefault()} noValidate>

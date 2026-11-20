@@ -77,6 +77,18 @@ export interface TareaVista {
   version: number;
 }
 
+/** Tarea en la pantalla "Registrar avances" del ingeniero (de una solicitud o propia de un proyecto). */
+export interface MiTarea extends TareaVista {
+  solicitudId: string | null;
+  solicitudCodigo: string | null;
+  solicitudTitulo: string | null;
+  proyectoId: string | null;
+  proyectoCodigo: string | null;
+  proyectoNombre: string | null;
+  /** false si la solicitud o el proyecto ya no admite cambios (cerrado, cancelado…) */
+  editable: boolean;
+}
+
 export interface CriterioCalificacion {
   id: number;
   codigo: string;

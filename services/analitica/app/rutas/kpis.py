@@ -8,6 +8,7 @@ from ..seguridad import requiere_rol
 
 router = APIRouter(prefix="/kpis", tags=["KPIs"])
 Gestor = Annotated[dict, Depends(requiere_rol("LIDER", "DIRECTOR"))]
+Equipo = Annotated[dict, Depends(requiere_rol("INGENIERO", "LIDER", "DIRECTOR"))]
 
 
 @router.get("/resumen")
@@ -129,4 +130,61 @@ async def calificaciones(_: Gestor):
         "ingenieros": [dict(f) for f in ingenieros],
         "departamentos": [dict(f) for f in departamentos],
         "distribucion": ordenar_letras({f["letra"]: f["total"] for f in letras}),
+    }
+
+
+@router.get("/mi-desempeno")
+async def mi_desempeno(u: Equipo, meses: Annotated[int, Query(ge=3, le=12)] = 6):
+    """Reporte personal del ingeniero (solo sus propios datos): tareas, carga, horas y calificaciones."""
+    resumen = await pool().fetchrow(
+        """
+        SELECT (SELECT count(*) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado AND t.estado <> 'COMPLETADA')::int AS tareas_abiertas,
+               (SELECT count(*) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado AND t.estado = 'BLOQUEADA')::int AS tareas_bloqueadas,
+               (SELECT count(*) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado AND t.estado = 'COMPLETADA'
+                   AND t.fecha_fin_real >= current_date - 30)::int AS completadas_30d,
+               (SELECT count(*) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado AND t.estado <> 'COMPLETADA'
+                   AND t.fecha_fin_plan < current_date)::int AS tareas_vencidas,
+               coalesce((SELECT sum(t.horas_reales) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado), 0)::float8 AS horas_reales,
+               coalesce((SELECT sum(t.horas_estimadas) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado
+                           AND t.estado = 'COMPLETADA'), 0)::float8 AS horas_estimadas_completadas,
+               coalesce((SELECT sum(t.horas_reales) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado
+                           AND t.estado = 'COMPLETADA'), 0)::float8 AS horas_reales_completadas,
+               coalesce(c.solicitudes_activas, 0)::int AS solicitudes_activas,
+               coalesce(c.carga_pct, 0)::int AS carga_pct,
+               coalesce(c.horas_pendientes, 0)::float8 AS horas_pendientes,
+               coalesce(c.capacidad_semana, 40)::int AS capacidad_semana,
+               ci.promedio_0a10::float8 AS calificacion_promedio,
+               coalesce(ci.evaluaciones, 0)::int AS evaluaciones
+          FROM (SELECT 1) x
+          LEFT JOIN v_carga_ingenieros c ON c.usuario_id = $1
+          LEFT JOIN v_calificaciones_ingenieros ci ON ci.usuario_id = $1
+        """,
+        u["id"],
+    )
+    por_mes = await pool().fetch(
+        """
+        WITH m AS (SELECT generate_series(date_trunc('month', now()) - make_interval(months => $2 - 1),
+                                          date_trunc('month', now()), interval '1 month') AS mes)
+        SELECT to_char(m.mes, 'YYYY-MM') AS mes,
+               (SELECT count(*) FROM tareas t WHERE t.responsable_id = $1 AND NOT t.eliminado AND t.estado = 'COMPLETADA'
+                   AND date_trunc('month', t.fecha_fin_real) = m.mes)::int AS completadas
+          FROM m ORDER BY m.mes
+        """,
+        u["id"], meses,
+    )
+    calificaciones = await pool().fetch(
+        """
+        SELECT s.codigo, s.titulo, e.tipo, e.fecha, ci.puntaje, e.calificacion_letra AS letra_equipo
+          FROM calificaciones_individuales ci
+          JOIN evaluaciones e ON e.id = ci.evaluacion_id AND NOT e.eliminado
+          JOIN solicitudes s ON s.id = e.solicitud_id
+         WHERE ci.usuario_id = $1
+         ORDER BY e.fecha DESC LIMIT 10
+        """,
+        u["id"],
+    )
+    return {
+        "resumen": dict(resumen) if resumen else {},
+        "completadas_por_mes": [dict(f) for f in por_mes],
+        "calificaciones": [dict(f) for f in calificaciones],
     }

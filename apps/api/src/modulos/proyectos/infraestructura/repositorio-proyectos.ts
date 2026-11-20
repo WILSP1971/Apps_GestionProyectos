@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
-  calcularFinanzas, saludCronograma,
+  calcularFinanzas, saludCronograma, TIPOS_REQUIEREN_PROYECTO,
   type CambioDeuda, type CambioProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
-  type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type ResumenProyecto, type RiesgoVista, type SolicitudDeProyecto,
+  type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type ResumenProyecto, type RiesgoVista, type SolicitudDeProyecto, type TareaVista,
 } from '@sierraflow/contratos';
 import { ConflictoConcurrencia, ErrorDominio, NoEncontrado } from '../../../compartido/dominio/errores';
 import { db } from '../../../compartido/infraestructura/base-datos';
@@ -66,8 +66,38 @@ export class RepositorioProyectos {
   async detalle(id: string, editar: boolean): Promise<DetalleProyecto> {
     const { rows: [f] } = await db().query(`SELECT ${COLUMNAS_PROYECTO} ${DESDE_PROYECTO} WHERE p.id = $1 AND NOT p.eliminado`, [id]);
     if (!f) throw new NoEncontrado('Proyecto', id);
-    const [solicitudes, riesgos, deuda] = await Promise.all([this.solicitudes(id), this.riesgos(id), this.deuda(id)]);
-    return { ...conIndicadores(f as FilaProyecto), solicitudesDetalle: solicitudes, riesgos, deuda, permisos: { editar } };
+    const [solicitudes, tareasProyecto, riesgos, deuda] = await Promise.all([
+      this.solicitudes(id), this.tareasProyecto(id), this.riesgos(id), this.deuda(id)]);
+    return { ...conIndicadores(f as FilaProyecto), solicitudesDetalle: solicitudes, tareasProyecto, riesgos, deuda, permisos: { editar } };
+  }
+
+  /** Proyectos en los que participa la persona: tiene tareas (propias del proyecto o de sus solicitudes) o está asignada. */
+  async mios(usuarioId: string): Promise<ResumenProyecto[]> {
+    const { rows } = await db().query(
+      `SELECT ${COLUMNAS_PROYECTO} ${DESDE_PROYECTO}
+        WHERE NOT p.eliminado AND p.estado NOT IN ('CANCELADO')
+          AND (EXISTS (SELECT 1 FROM gestion.tareas t WHERE t.proyecto_id = p.id AND t.responsable_id = $1 AND NOT t.eliminado)
+               OR EXISTS (SELECT 1 FROM gestion.solicitudes s
+                            JOIN gestion.asignaciones a ON a.solicitud_id = s.id AND a.activa AND NOT a.eliminado
+                           WHERE s.proyecto_id = p.id AND NOT s.eliminado AND a.usuario_id = $1))
+        ORDER BY (p.estado = 'CERRADO'), p.fecha_fin_plan NULLS LAST, p.nombre`, [usuarioId]);
+    return rows.map((f: FilaProyecto) => conIndicadores(f));
+  }
+
+  /** Regla 3: tareas propias del proyecto. */
+  async tareasProyecto(proyectoId: string): Promise<TareaVista[]> {
+    const { rows } = await db().query(
+      `SELECT t.id, t.titulo, t.descripcion, t.grupo_id AS "grupoId", g.nombre AS grupo,
+              t.responsable_id AS "responsableId", u.nombre_completo AS responsable, t.estado::text AS estado,
+              t.peso, t.avance_pct::float8 AS "avancePct", t.horas_estimadas::float8 AS "horasEstimadas",
+              t.horas_reales::float8 AS "horasReales", to_char(t.fecha_inicio, 'YYYY-MM-DD') AS "fechaInicio",
+              to_char(t.fecha_fin_plan, 'YYYY-MM-DD') AS "fechaFinPlan", t.version
+         FROM gestion.tareas t
+         LEFT JOIN gestion.grupos_trabajo g ON g.id = t.grupo_id
+         LEFT JOIN gestion.usuarios u ON u.id = t.responsable_id
+        WHERE t.proyecto_id = $1 AND NOT t.eliminado
+        ORDER BY t.fecha_inicio NULLS LAST, t.creado_en`, [proyectoId]);
+    return rows;
   }
 
   /** Solicitudes del proyecto con sus tareas (filas del Gantt). */
@@ -109,7 +139,7 @@ export class RepositorioProyectos {
   }
 
   async catalogos(proyectoId: string | null): Promise<CatalogosProyecto> {
-    const [deps, directores, responsables, disponibles] = await Promise.all([
+    const [deps, directores, responsables, disponibles, grupos] = await Promise.all([
       db().query(`SELECT id, nombre FROM gestion.departamentos WHERE activo AND NOT eliminado ORDER BY nombre`),
       db().query(
         `SELECT DISTINCT u.id, u.nombre_completo AS nombre FROM gestion.usuarios u
@@ -125,9 +155,13 @@ export class RepositorioProyectos {
           WHERE NOT s.eliminado AND s.proyecto_id IS NULL
             AND s.estado NOT IN ('BORRADOR','RECHAZADA','CANCELADA')
           ORDER BY s.creado_en DESC LIMIT 300`),
+      db().query(`SELECT id, nombre FROM gestion.grupos_trabajo WHERE activo AND NOT eliminado ORDER BY nombre`),
     ]);
     void proyectoId;
-    return { departamentos: deps.rows, directores: directores.rows, responsables: responsables.rows, solicitudesDisponibles: disponibles.rows };
+    return {
+      departamentos: deps.rows, directores: directores.rows, responsables: responsables.rows,
+      solicitudesDisponibles: disponibles.rows, grupos: grupos.rows,
+    };
   }
 
   // -------------------------------------------------------------------
@@ -179,6 +213,15 @@ export class RepositorioProyectos {
       }
     }
     if (quitar.length) {
+      // Regla 1: un requerimiento funcional ya en ejecución no puede quedar sin proyecto
+      const { rows: bloqueadas } = await db().query(
+        `SELECT codigo FROM gestion.solicitudes
+          WHERE proyecto_id = $1 AND id = ANY($2::uuid[]) AND tipo = ANY($3::gestion.tipo_solicitud[])
+            AND estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION')`, [id, quitar, [...TIPOS_REQUIEREN_PROYECTO]]);
+      if (bloqueadas.length) {
+        throw new ErrorDominio('REQUIERE_PROYECTO',
+          `${bloqueadas.map((b: { codigo: string }) => b.codigo).join(', ')}: los requerimientos funcionales en ejecución deben permanecer en un proyecto`);
+      }
       await db().query(`UPDATE gestion.solicitudes SET proyecto_id = NULL WHERE proyecto_id = $1 AND id = ANY($2::uuid[])`, [id, quitar]);
     }
   }

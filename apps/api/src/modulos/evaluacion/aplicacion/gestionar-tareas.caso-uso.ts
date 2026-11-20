@@ -41,6 +41,21 @@ export class GestionarTareasCasoUso {
     });
   }
 
+  /** Regla 3: tarea propia del proyecto (sin solicitud): gestión, capacitación, despliegue… */
+  async crearEnProyecto(proyectoId: string, dto: NuevaTarea, u: UsuarioActual): Promise<TareaVista> {
+    return enTransaccion(u.id, async () => {
+      await this.validarProyecto(proyectoId);
+      await this.validarResponsableProyecto(dto.responsableId);
+      validarFechas(dto.fechaInicio, dto.fechaFinPlan);
+      const { rows: [r] } = await db().query(
+        `INSERT INTO gestion.tareas(proyecto_id, titulo, descripcion, grupo_id, responsable_id, peso, horas_estimadas, fecha_inicio, fecha_fin_plan)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [proyectoId, dto.titulo, dto.descripcion ?? null, dto.grupoId ?? null, dto.responsableId ?? null,
+          dto.peso ?? 1, dto.horasEstimadas ?? null, dto.fechaInicio ?? null, dto.fechaFinPlan ?? null]);
+      return (await this.consultas.tarea(r.id))!;
+    });
+  }
+
   async actualizar(tareaId: string, dto: CambioTarea, u: UsuarioActual): Promise<TareaVista> {
     return enTransaccion(u.id, async () => {
       const actual = await this.consultas.tarea(tareaId);
@@ -52,11 +67,13 @@ export class GestionarTareasCasoUso {
         const otros = Object.keys(dto).filter((k) => !CAMPOS_INGENIERO.has(k) && dto[k as keyof CambioTarea] !== undefined);
         if (otros.length) throw new SinPermiso('Solo puedes cambiar el estado, el avance y las horas reales de tu tarea');
       }
-      const estadoSolicitud = await this.validarSolicitud(actual.solicitudId);
+      const estadoSolicitud = actual.solicitudId ? await this.validarSolicitud(actual.solicitudId) : null;
+      if (actual.proyectoId) await this.validarProyecto(actual.proyectoId);
       validarFechas(dto.fechaInicio === undefined ? actual.fechaInicio : dto.fechaInicio,
         dto.fechaFinPlan === undefined ? actual.fechaFinPlan : dto.fechaFinPlan);
       if (dto.responsableId !== undefined && dto.responsableId !== actual.responsableId) {
-        await this.validarResponsable(actual.solicitudId, dto.responsableId);
+        if (actual.solicitudId) await this.validarResponsable(actual.solicitudId, dto.responsableId);
+        else await this.validarResponsableProyecto(dto.responsableId);
       }
 
       const columnas: Record<string, unknown> = {
@@ -73,11 +90,11 @@ export class GestionarTareasCasoUso {
         if (!rowCount) throw new ConflictoConcurrencia('Tarea', tareaId);
       }
 
-      if (dto.responsableId && dto.responsableId !== actual.responsableId && dto.responsableId !== u.id) {
+      if (actual.solicitudId && dto.responsableId && dto.responsableId !== actual.responsableId && dto.responsableId !== u.id) {
         await this.avisarResponsable(actual.solicitudId, dto.responsableId, dto.titulo ?? actual.titulo, u);
       }
       const nueva = (await this.consultas.tarea(tareaId))!;
-      if (estadoSolicitud === 'ASIGNADA' && (nueva.avancePct > 0 || nueva.estado !== 'PENDIENTE')) {
+      if (actual.solicitudId && estadoSolicitud === 'ASIGNADA' && (nueva.avancePct > 0 || nueva.estado !== 'PENDIENTE')) {
         await this.iniciarDesarrollo(actual.solicitudId, u);
       }
       return nueva;
@@ -88,7 +105,8 @@ export class GestionarTareasCasoUso {
     await enTransaccion(u.id, async () => {
       const actual = await this.consultas.tarea(tareaId);
       if (!actual) throw new NoEncontrado('Tarea', tareaId);
-      await this.validarSolicitud(actual.solicitudId);
+      if (actual.solicitudId) await this.validarSolicitud(actual.solicitudId);
+      else await this.validarProyecto(actual.proyectoId!);
       const { rowCount } = await db().query(
         `UPDATE gestion.tareas SET eliminado = true WHERE id = $1 AND version = $2 AND NOT eliminado`, [tareaId, version]);
       if (!rowCount) throw new ConflictoConcurrencia('Tarea', tareaId);
@@ -103,6 +121,24 @@ export class GestionarTareasCasoUso {
       throw new ErrorDominio('ESTADO_INVALIDO', 'Las tareas solo se gestionan en solicitudes asignadas, en desarrollo o en validación');
     }
     return s.estado;
+  }
+
+  private async validarProyecto(proyectoId: string) {
+    const { rows: [p] } = await db().query(
+      `SELECT estado::text AS estado FROM gestion.proyectos WHERE id = $1 AND NOT eliminado`, [proyectoId]);
+    if (!p) throw new NoEncontrado('Proyecto', proyectoId);
+    if (p.estado === 'CERRADO' || p.estado === 'CANCELADO') {
+      throw new ErrorDominio('ESTADO_INVALIDO', 'El proyecto está cerrado o cancelado: sus tareas ya no se modifican');
+    }
+  }
+
+  /** En tareas del proyecto el responsable puede ser cualquier ingeniero, líder o director activo. */
+  private async validarResponsableProyecto(responsableId: string | null | undefined) {
+    if (!responsableId) return;
+    const { rowCount } = await db().query(
+      `SELECT 1 FROM gestion.usuarios u JOIN gestion.usuario_roles ur ON ur.usuario_id = u.id JOIN gestion.roles r ON r.id = ur.rol_id
+        WHERE u.id = $1 AND u.activo AND NOT u.eliminado AND r.codigo IN ('INGENIERO','LIDER','DIRECTOR') LIMIT 1`, [responsableId]);
+    if (!rowCount) throw new ErrorDominio('RESPONSABLE_INVALIDO', 'El responsable debe ser un ingeniero, líder o director activo');
   }
 
   private async validarResponsable(solicitudId: string, responsableId: string | null | undefined) {

@@ -1,11 +1,12 @@
 import {
-  calcularFinanzas, saludCronograma,
-  type CambioDeuda, type CambioProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
+  avancePonderado, calcularFinanzas, saludCronograma,
+  type CambioDeuda, type CambioTarea, type NuevaTarea, type CambioProyecto, type CambioRiesgo, type CatalogosProyecto, type DetalleProyecto, type DeudaVista,
   type EstadoProyecto, type NuevaDeuda, type NuevoProyecto, type NuevoRiesgo, type ResumenProyecto, type RiesgoVista,
   type SolicitudDeProyecto, type TareaVista,
 } from '@sierraflow/contratos';
 import { apiFetch } from '@/lib/api';
 import { dbLocal, type SolicitudLocal } from '@/lib/offline/db';
+import { GRUPOS_DEMO, INGENIEROS_DEMO } from '@/modulos/asignacion/infraestructura/fuente-asignacion';
 
 /** Puerto de datos de la PM Suite: API real (requiere conexión) o datos locales en modo demo. */
 export interface FuenteProyectos {
@@ -22,6 +23,12 @@ export interface FuenteProyectos {
   crearDeuda(proyectoId: string, datos: NuevaDeuda): Promise<DeudaVista>;
   actualizarDeuda(id: string, datos: CambioDeuda): Promise<DeudaVista>;
   eliminarDeuda(id: string): Promise<void>;
+  /** Proyectos en los que participa el usuario (menú del ingeniero). */
+  mios(): Promise<ResumenProyecto[]>;
+  /** Regla 3: tareas propias del proyecto. */
+  crearTareaProyecto(proyectoId: string, datos: NuevaTarea): Promise<TareaVista>;
+  actualizarTareaProyecto(id: string, datos: CambioTarea): Promise<TareaVista>;
+  eliminarTareaProyecto(id: string, version: number): Promise<void>;
 }
 
 export const fuenteApi: FuenteProyectos = {
@@ -38,6 +45,10 @@ export const fuenteApi: FuenteProyectos = {
   crearDeuda: (id, datos) => apiFetch(`/proyectos/${id}/deuda`, { method: 'POST', body: datos }),
   actualizarDeuda: (id, datos) => apiFetch(`/proyectos/deuda/${id}`, { method: 'PATCH', body: datos }),
   eliminarDeuda: (id) => apiFetch(`/proyectos/deuda/${id}`, { method: 'DELETE' }),
+  mios: () => apiFetch('/proyectos/mios'),
+  crearTareaProyecto: (id, datos) => apiFetch(`/evaluacion/proyectos/${id}/tareas`, { method: 'POST', body: datos }),
+  actualizarTareaProyecto: (id, datos) => apiFetch(`/evaluacion/tareas/${id}`, { method: 'PATCH', body: datos }),
+  eliminarTareaProyecto: (id, version) => apiFetch(`/evaluacion/tareas/${id}?version=${version}`, { method: 'DELETE' }),
 };
 
 // ---------------------------------------------------------------------
@@ -50,6 +61,7 @@ interface ProyectoDemo {
   directorId: string | null; director: string | null; fechaInicio: string | null; fechaFinPlan: string | null;
   presupuesto: number | null; costoOtros: number; tarifaHora: number | null; beneficioEsperado: number | null;
   moneda: string; version: number; solicitudes: string[]; riesgos: RiesgoVista[]; deuda: DeudaVista[];
+  tareasProyecto?: TareaVista[];
 }
 const CLAVE = 'pm:proyectos';
 const hoyIso = (d = 0) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
@@ -110,10 +122,14 @@ async function armar(p: ProyectoDemo): Promise<DetalleProyecto> {
       })),
     };
   }));
-  const todas = (await Promise.all(sols.map(tareasDe))).flat();
+  const propias = p.tareasProyecto ?? [];
+  const todas = [...(await Promise.all(sols.map(tareasDe))).flat(), ...propias];
   const horasReales = todas.reduce((a, t) => a + t.horasReales, 0);
   const horasEstimadas = todas.reduce((a, t) => a + (t.horasEstimadas ?? 0), 0);
-  const avancePct = sols.length ? Math.round((sols.reduce((a, s) => a + s.avancePct, 0) / sols.length) * 100) / 100 : 0;
+  // Igual que v_proyectos_indicadores: promedio de solicitudes + avance de las tareas propias como un componente más
+  const componentes = [...sols.filter((s) => !['CANCELADA', 'RECHAZADA'].includes(s.estado)).map((s) => s.avancePct),
+    ...(propias.length ? [avancePonderado(propias)] : [])];
+  const avancePct = componentes.length ? Math.round((componentes.reduce((a, b) => a + b, 0) / componentes.length) * 100) / 100 : 0;
   return {
     ...p, solicitudes: sols.length, avancePct, horasReales, horasEstimadas,
     riesgosAltos: p.riesgos.filter((r) => ['ABIERTO', 'MATERIALIZADO'].includes(r.estado) && r.exposicion >= 10).length,
@@ -121,6 +137,7 @@ async function armar(p: ProyectoDemo): Promise<DetalleProyecto> {
     salud: saludCronograma(avancePct, p.fechaInicio, p.fechaFinPlan, Date.now(), p.estado === 'CERRADO' || p.estado === 'CANCELADO'),
     finanzas: calcularFinanzas({ presupuesto: p.presupuesto, costoOtros: p.costoOtros, tarifaHora: p.tarifaHora, horasReales, horasEstimadas, beneficioEsperado: p.beneficioEsperado }),
     solicitudesDetalle: detalle,
+    tareasProyecto: propias,
     riesgos: [...p.riesgos].sort((a, b) => b.exposicion - a.exposicion),
     deuda: p.deuda,
     permisos: { editar: true },
@@ -150,7 +167,8 @@ export const fuenteDemo: FuenteProyectos = {
     return {
       departamentos: [...new Set(sols.map((s) => s.departamento))].map((d) => ({ id: d, nombre: d })),
       directores: [{ id: 'demo', nombre: 'Usuario demo' }],
-      responsables: [{ id: 'demo', nombre: 'Usuario demo' }],
+      responsables: [{ id: 'demo', nombre: 'Usuario demo' }, ...INGENIEROS_DEMO.map((i) => ({ id: i.usuarioId, nombre: i.nombre }))],
+      grupos: GRUPOS_DEMO.map((g) => ({ id: g.id, nombre: g.nombre })),
       solicitudesDisponibles: sols.filter((s) => !usadas.has(s.id) && !['BORRADOR', 'RECHAZADA', 'CANCELADA'].includes(s.estado))
         .map((s) => ({ id: s.id, codigo: s.codigo, titulo: s.titulo, estado: s.estado, departamento: s.departamento })),
     };
@@ -228,6 +246,43 @@ export const fuenteDemo: FuenteProyectos = {
   async eliminarDeuda(id) {
     const { lista, p } = await buscar((x) => x.deuda.some((d) => d.id === id));
     p.deuda = p.deuda.filter((d) => d.id !== id);
+    await guardar(lista);
+  },
+  async mios() {
+    return Promise.all((await leer()).map(armar));
+  },
+  async crearTareaProyecto(id, d) {
+    const { lista, p } = await buscar((x) => x.id === id);
+    if (p.estado === 'CERRADO' || p.estado === 'CANCELADO') throw new Error('El proyecto está cerrado o cancelado');
+    const resp = INGENIEROS_DEMO.find((i) => i.usuarioId === d.responsableId);
+    const t: TareaVista = {
+      id: crypto.randomUUID(), titulo: d.titulo, descripcion: d.descripcion ?? null, grupoId: d.grupoId ?? null,
+      grupo: GRUPOS_DEMO.find((g) => g.id === d.grupoId)?.nombre ?? null, responsableId: d.responsableId ?? null,
+      responsable: resp?.nombre ?? (d.responsableId === 'demo' ? 'Usuario demo' : null), estado: 'PENDIENTE', peso: d.peso ?? 1,
+      avancePct: 0, horasEstimadas: d.horasEstimadas ?? null, horasReales: 0, fechaInicio: d.fechaInicio ?? null,
+      fechaFinPlan: d.fechaFinPlan ?? null, version: 1,
+    };
+    p.tareasProyecto = [...(p.tareasProyecto ?? []), t];
+    await guardar(lista);
+    return t;
+  },
+  async actualizarTareaProyecto(id, c) {
+    const { lista, p } = await buscar((x) => (x.tareasProyecto ?? []).some((t) => t.id === id));
+    const t = p.tareasProyecto!.find((x) => x.id === id)!;
+    if (t.version !== c.version) throw new Error('La tarea cambió; recarga e intenta de nuevo');
+    const { version: _v, ...resto } = c;
+    Object.assign(t, Object.fromEntries(Object.entries(resto).filter(([, v]) => v !== undefined)), { version: t.version + 1 });
+    if (t.estado === 'COMPLETADA') t.avancePct = 100;
+    else if (t.avancePct >= 100) t.estado = 'COMPLETADA';
+    else if (t.avancePct > 0 && t.estado === 'PENDIENTE') t.estado = 'EN_PROGRESO';
+    if (c.responsableId !== undefined) t.responsable = INGENIEROS_DEMO.find((i) => i.usuarioId === c.responsableId)?.nombre ?? null;
+    if (c.grupoId !== undefined) t.grupo = GRUPOS_DEMO.find((g) => g.id === c.grupoId)?.nombre ?? null;
+    await guardar(lista);
+    return t;
+  },
+  async eliminarTareaProyecto(id) {
+    const { lista, p } = await buscar((x) => (x.tareasProyecto ?? []).some((t) => t.id === id));
+    p.tareasProyecto = p.tareasProyecto!.filter((t) => t.id !== id);
     await guardar(lista);
   },
 };

@@ -17,6 +17,7 @@ SELECT s.id, s.codigo, s.titulo, s.descripcion,
        s.tipo, s.prioridad, s.estado, s.avance_pct::float8 AS "avancePct",
        d.nombre AS departamento, d.color_hex AS "departamentoColor", s.solicitante_id AS "solicitanteId", u.nombre_completo AS "solicitanteNombre",
        to_char(s.fecha_deseada, 'YYYY-MM-DD') AS "fechaDeseada",
+       s.proyecto_id AS "proyectoId", pr.codigo AS "proyectoCodigo", pr.nombre AS "proyectoNombre",
        s.version, s.creado_en AS "creadoEn", s.actualizado_en AS "actualizadoEn", s.eliminado,
        coalesce((SELECT array_agg(t.nombre ORDER BY t.nombre)
                    FROM gestion.solicitud_tecnologias st JOIN gestion.tecnologias t ON t.id = st.tecnologia_id
@@ -45,6 +46,7 @@ SELECT s.id, s.codigo, s.titulo, s.descripcion,
   FROM gestion.solicitudes s
   JOIN gestion.departamentos d ON d.id = s.departamento_id
   JOIN gestion.usuarios u ON u.id = s.solicitante_id
+  LEFT JOIN gestion.proyectos pr ON pr.id = s.proyecto_id
   CROSS JOIN LATERAL (
     SELECT greatest(s.seq_cambio,
                     coalesce((SELECT max(c.seq_cambio) FROM gestion.criterios_aceptacion c WHERE c.solicitud_id = s.id), 0),

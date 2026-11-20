@@ -44,6 +44,24 @@ export class EvaluacionController {
     return this.registrar.ejecutar(id, dto, u);
   }
 
+  /** Registrar avances: tareas de las que soy responsable (de solicitudes y de proyectos). */
+  @Get('mis-tareas')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  misTareas(@Usuario() u: UsuarioActual) {
+    return this.consultas.misTareas(u.id);
+  }
+
+  /** Regla 3: tarea propia de un proyecto. */
+  @Post('proyectos/:id/tareas')
+  @Roles('LIDER', 'DIRECTOR')
+  crearTareaProyecto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(esquemaNuevaTarea)) dto: NuevaTarea,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.tareas.crearEnProyecto(id, dto, u);
+  }
+
   @Post('solicitudes/:id/tareas')
   @Roles('LIDER', 'DIRECTOR')
   crearTarea(

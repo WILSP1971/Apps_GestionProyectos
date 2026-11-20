@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { ETIQUETA_ESTADO, escalaGantt, posicionGantt, type SolicitudDeProyecto } from '@sierraflow/contratos';
+import { avancePonderado, ETIQUETA_ESTADO, escalaGantt, posicionGantt, type SolicitudDeProyecto, type TareaVista } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { fechaCorta } from './comunes';
 
@@ -14,8 +14,26 @@ const ANCHO_ETIQUETA = 260;
  * al expandir, sus tareas (inicio → entrega). El relleno de cada barra es el avance real.
  * Línea vertical = hoy; franja sombreada = plazo planeado del proyecto.
  */
-export function Gantt({ solicitudes, inicioPlan, finPlan }: { solicitudes: SolicitudDeProyecto[]; inicioPlan: string | null; finPlan: string | null }) {
-  const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set(solicitudes.slice(0, 3).map((s) => s.id)));
+const ID_PROYECTO = '__tareas_del_proyecto';
+
+export function Gantt({ solicitudes: deSolicitudes, tareasProyecto = [], inicioPlan, finPlan }: {
+  solicitudes: SolicitudDeProyecto[]; tareasProyecto?: TareaVista[]; inicioPlan: string | null; finPlan: string | null;
+}) {
+  // Regla 3: las tareas propias del proyecto se muestran como un grupo más, arriba
+  const solicitudes = useMemo<SolicitudDeProyecto[]>(() => {
+    if (!tareasProyecto.length) return deSolicitudes;
+    const inicios = tareasProyecto.map((t) => t.fechaInicio).filter((f): f is string => !!f).sort();
+    const fines = tareasProyecto.map((t) => t.fechaFinPlan).filter((f): f is string => !!f).sort();
+    const grupo: SolicitudDeProyecto = {
+      id: ID_PROYECTO, codigo: 'Proyecto', titulo: 'Tareas del proyecto', estado: 'EN_DESARROLLO',
+      avancePct: avancePonderado(tareasProyecto), inicio: inicios[0] ?? null, fin: fines.at(-1) ?? null,
+      cerrada: tareasProyecto.every((t) => t.estado === 'COMPLETADA'),
+      tareas: tareasProyecto.map((t) => ({ id: t.id, titulo: t.titulo, grupo: t.grupo, responsable: t.responsable, estado: t.estado,
+        avancePct: t.avancePct, inicio: t.fechaInicio, fin: t.fechaFinPlan, dependeDe: null })),
+    };
+    return [grupo, ...deSolicitudes];
+  }, [deSolicitudes, tareasProyecto]);
+  const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set([ID_PROYECTO, ...deSolicitudes.slice(0, 3).map((s) => s.id)]));
   const [hover, setHover] = useState<string | null>(null);
 
   const escala = useMemo(() => escalaGantt(
@@ -46,7 +64,7 @@ export function Gantt({ solicitudes, inicioPlan, finPlan }: { solicitudes: Solic
   const anchoMin = Math.max(640, Math.min(escala.dias * 18, 2400));
 
   if (!solicitudes.length) {
-    return <p className="py-10 text-center text-sm text-atenuado">Agrega solicitudes al proyecto para ver su cronograma.</p>;
+    return <p className="py-10 text-center text-sm text-atenuado">Agrega solicitudes o tareas al proyecto para ver su cronograma.</p>;
   }
 
   const alternar = (id: string) => setAbiertas((a) => {
@@ -110,10 +128,17 @@ export function Gantt({ solicitudes, inicioPlan, finPlan }: { solicitudes: Solic
                     className="rounded p-0.5 text-atenuado hover:text-texto disabled:opacity-30" disabled={!s.tareas.length}>
                     {abiertas.has(s.id) ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                   </button>
-                  <Link href={`/solicitudes/${s.id}`} className="min-w-0 hover:text-teal-200">
-                    <span className="block truncate text-xs font-medium">{s.titulo}</span>
-                    <span className="block text-[10px] text-atenuado"><span className="font-mono text-sky-300">{s.codigo}</span> · {ETIQUETA_ESTADO[s.estado]} · {Math.round(s.avancePct)}%</span>
-                  </Link>
+                  {s.id === ID_PROYECTO ? (
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-medium text-teal-200">{s.titulo}</span>
+                      <span className="block text-[10px] text-atenuado">{s.tareas.length} tarea(s) · {Math.round(s.avancePct)}%</span>
+                    </span>
+                  ) : (
+                    <Link href={`/solicitudes/${s.id}`} className="min-w-0 hover:text-teal-200">
+                      <span className="block truncate text-xs font-medium">{s.titulo}</span>
+                      <span className="block text-[10px] text-atenuado"><span className="font-mono text-sky-300">{s.codigo}</span> · {ETIQUETA_ESTADO[s.estado]} · {Math.round(s.avancePct)}%</span>
+                    </Link>
+                  )}
                 </div>
                 <div className="relative h-11 flex-1">
                   <Barra id={s.id} inicio={s.inicio} fin={s.fin} avance={s.avancePct} fuerte titulo={`${s.codigo} · ${s.titulo}`}

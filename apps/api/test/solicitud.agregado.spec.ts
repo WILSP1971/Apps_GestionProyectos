@@ -8,10 +8,11 @@ const otro: UsuarioActual = { id: 'u9', roles: ['SOLICITANTE'], departamentoId: 
 const lider: UsuarioActual = { id: 'u2', roles: ['LIDER'], departamentoId: 'd1' };
 const ingeniero: UsuarioActual = { id: 'u3', roles: ['INGENIERO'], departamentoId: 'd1' };
 
-const nueva = (criterios = [{ id: 'c1', orden: 1, descripcion: 'Pago aprobado', cumplido: false }]) =>
+const nueva = (criterios = [{ id: 'c1', orden: 1, descripcion: 'Pago aprobado', cumplido: false }], proyectoId: string | null = 'p1',
+  tipo: 'FUNCIONAL' | 'MEJORA' = 'FUNCIONAL') =>
   Solicitud.crear('s1', {
-    titulo: 'Integración pagos regionales', descripcion: 'Pasarela COP/USD', tipo: 'FUNCIONAL',
-    prioridad: 'ALTA', solicitanteId: 'u1', departamentoId: 'd1', criterios, tecnologias: [],
+    titulo: 'Integración pagos regionales', descripcion: 'Pasarela COP/USD', tipo,
+    prioridad: 'ALTA', solicitanteId: 'u1', departamentoId: 'd1', proyectoId, criterios, tecnologias: [],
   });
 
 test('se crea en BORRADOR y registra el evento solicitud.creada', () => {
@@ -77,4 +78,16 @@ test('solo se edita en borrador', () => {
   assert.equal(s.datos.prioridad, 'CRITICA');
   s.cambiarEstado('ENVIADA', solicitante);
   assert.throws(() => s.editar({ prioridad: 'BAJA' }, solicitante), /borrador/);
+});
+
+test('regla 1: un requerimiento FUNCIONAL sin proyecto no se asigna; una MEJORA sí', () => {
+  const aprobar = (x: ReturnType<typeof nueva>) => {
+    x.cambiarEstado('ENVIADA', solicitante); x.cambiarEstado('EN_REVISION', lider); x.cambiarEstado('APROBADA', lider);
+    return x;
+  };
+  const funcional = aprobar(nueva(undefined, null));
+  assert.throws(() => funcional.cambiarEstado('ASIGNADA', lider), /proyecto/);
+  const mejora = aprobar(nueva(undefined, null, 'MEJORA'));
+  mejora.cambiarEstado('ASIGNADA', lider);
+  assert.equal(mejora.estado, 'ASIGNADA');
 });
