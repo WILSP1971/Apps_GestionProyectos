@@ -117,9 +117,13 @@ if esperar_url "http://127.0.0.1:${PUERTO_API}/api/salud"; then ok "API      htt
 if esperar_url "http://127.0.0.1:${PUERTO_WEB}/login"; then ok "Web      http://127.0.0.1:${PUERTO_WEB}/login"; else aviso "La web no responde (pm2 logs sierraflow-web)"; FALLAS=1; fi
 if esperar_url "http://127.0.0.1:${PUERTO_PY}/salud" 10; then ok "Analítica http://127.0.0.1:${PUERTO_PY}/salud"; else aviso "Analítica no responde (journalctl -u sierraflow-analitica -n 50)"; FALLAS=1; fi
 
-echo
-if [[ $FALLAS -eq 0 ]]; then
-  echo -e "${C_VERDE}Despliegue completado en $(( $(date +%s) - INICIO )) s → $(leer_env WEB_URL)${C_FIN}"
-else
-  error "Despliegue terminado con servicios sin responder. Revise los registros indicados arriba."
+[[ $FALLAS -eq 0 ]] || error "Despliegue terminado con servicios sin responder. Revise los registros indicados arriba."
+
+# Prueba de humo contra la URL pública (lo que ven los usuarios: estilos, SW, API, analítica, seguridad)
+if ! bash "$APP/deploy/prueba-humo.sh"; then
+  aviso "La prueba de humo encontró fallas (arriba). La versión ya está publicada: revise antes de avisar a los usuarios."
 fi
+[[ -f /etc/nginx/conf.d/sierraflow-endurecimiento.conf ]] || aviso "Endurecimiento pendiente (una sola vez):  sudo bash $APP/deploy/endurecer.sh"
+
+echo
+echo -e "${C_VERDE}Despliegue completado en $(( $(date +%s) - INICIO )) s → $(leer_env WEB_URL)${C_FIN}"

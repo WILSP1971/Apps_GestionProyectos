@@ -207,6 +207,23 @@ Endpoints: `GET/POST /api/proyectos`, `GET /api/proyectos/catalogos`, `GET/PATCH
 `PUT /api/proyectos/:id/solicitudes`, `POST /api/proyectos/:id/riesgos`, `PATCH|DELETE /api/proyectos/riesgos/:id`,
 `POST /api/proyectos/:id/deuda`, `PATCH|DELETE /api/proyectos/deuda/:id`.
 
+### Endurecimiento y operación (Sprint 8)
+
+Detalle completo en [`docs/Operacion_y_Seguridad.md`](docs/Operacion_y_Seguridad.md).
+
+| Script | Para qué |
+|---|---|
+| `sudo bash deploy/endurecer.sh` | **Una vez**: HSTS, versión de Nginx oculta, límite por IP, registros sin tokens, permisos del `.env`, actualizaciones automáticas, fail2ban, verificación semanal de copias y purgas |
+| `bash deploy/prueba-humo.sh` | Revisa la URL pública: estilos, Service Worker, API + BD, analítica, 401 sin sesión, cabeceras, certificado. `desplegar.sh` la corre al final |
+| `sudo bash deploy/verificar-copia.sh` | Simulacro: restaura la última copia en una base temporal y compara registros |
+| `sudo bash deploy/restaurar.sh` | Restauración guiada (respalda antes el estado actual) |
+| `bash deploy/medir-rendimiento.sh` | p50/p95 de login, estilos, API y analítica |
+| `database/diagnostico/salud_bd.sql` | Tamaños, índices sin uso, lecturas completas, outbox pendiente, consultas lentas |
+
+La API ahora: limita peticiones por IP (`LIMITE_PETICIONES_MIN`, `LIMITE_AUTH_MIN`), responde `Cache-Control: no-store`,
+confía solo en el proxy local para la IP del cliente y no arranca en producción si faltan secretos indispensables.
+Guion manual de pruebas sin conexión: [`docs/pruebas/E2E_sin_conexion.md`](docs/pruebas/E2E_sin_conexion.md).
+
 ## 8. Pruebas
 
 ```bash
@@ -224,7 +241,7 @@ cd services/analitica && pytest -q
 - [x] **Sprint 5** – Asignación por carga de trabajo, Kanban por departamentos y administración de usuarios
 - [x] **Sprint 6** – Tareas por frente, evaluación/calificación y reportes
 - [x] **Sprint 7** – PM Suite: proyectos, Gantt, matriz de riesgos, deuda técnica, presupuesto y ROI
-- [ ] **Sprint 8** – Endurecimiento: pruebas E2E offline, rendimiento, seguridad y restauración de copias
+- [x] **Sprint 8** – Endurecimiento: límites de peticiones, cabeceras y registros seguros, verificación y restauración de copias, prueba de humo, rendimiento y guion de pruebas sin conexión
 
 ## 10. Instalación en el VPS (producción)
 

@@ -342,6 +342,9 @@ fi
 ss -ltn | grep -E ":(${PUERTO_WEB}|${PUERTO_API}|${PUERTO_PY}|5432)\b" | grep -vq '127.0.0.1\|\[::1\]' \
   && aviso "Algún puerto interno escucha en todas las interfaces; revise con: ss -ltnp" || ok "Puertos internos solo en 127.0.0.1"
 
+# Endurecimiento (Nginx, permisos, fail2ban, verificación semanal de copias)
+bash "$APP/deploy/endurecer.sh" || aviso "Endurecimiento no aplicado; ejecútelo luego:  sudo bash $APP/deploy/endurecer.sh"
+
 # ---------------------------------------------------------------------
 echo
 echo -e "${C_VERDE}════════════════════════════════════════════════════════════════${C_FIN}"
@@ -352,7 +355,9 @@ cat <<EOF
   Actualizar:      sudo bash $APP/deploy/desplegar.sh
   Procesos Node:   sudo -u $USUARIO pm2 status   ·   sudo -u $USUARIO pm2 logs
   Analítica:       journalctl -u sierraflow-analitica -f
-  Copias:          /var/backups/sierraflow
+  Copias:          /var/backups/sierraflow   ·   verificar: sudo bash $APP/deploy/verificar-copia.sh
+  Restaurar:       sudo bash $APP/deploy/restaurar.sh
+  Prueba de humo:  bash $APP/deploy/prueba-humo.sh
 
   Siguiente paso: configurar el inicio de sesión con Google/Microsoft
   (docs/Despliegue_VPS.md, paso 6).
