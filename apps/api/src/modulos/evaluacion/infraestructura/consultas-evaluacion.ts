@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
-  calcularFrentes, type ContextoEvaluacion, type CriterioCalificacion, type EvaluacionVista, type MiTarea, type ResumenEvaluable, type TareaVista,
+  calcularFrentes, serieHoras, type ContextoEvaluacion, type CriterioCalificacion, type DetalleTarea, type EstadoSolicitud,
+  type EvaluacionVista, type MiActividad, type MiTarea, type OpcionesNuevaTarea, type RegistroAvance, type ResumenEvaluable,
+  type SubtareaVista, type TareaVista,
 } from '@sierraflow/contratos';
 import { NoEncontrado, SinPermiso } from '../../../compartido/dominio/errores';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
@@ -18,6 +20,28 @@ const DESDE_TAREA = `
   FROM gestion.tareas t
   LEFT JOIN gestion.grupos_trabajo g ON g.id = t.grupo_id
   LEFT JOIN gestion.usuarios u ON u.id = t.responsable_id`;
+
+/** Tarea con su contexto para el Centro de trabajo; $1 = usuario que consulta. */
+const SELECT_MI_TAREA = `
+  SELECT ${COLUMNAS_TAREA},
+         t.solicitud_id AS "solicitudId", s.codigo AS "solicitudCodigo", s.titulo AS "solicitudTitulo",
+         coalesce(t.proyecto_id, s.proyecto_id) AS "proyectoId", p.codigo AS "proyectoCodigo", p.nombre AS "proyectoNombre",
+         CASE WHEN t.solicitud_id IS NOT NULL THEN coalesce(s.estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION'), false)
+              ELSE coalesce(p.estado NOT IN ('CERRADO','CANCELADO'), false) END AS editable,
+         (SELECT count(*) FROM gestion.tarea_subtareas st WHERE st.tarea_id = t.id)::int AS "subtareasTotal",
+         (SELECT count(*) FROM gestion.tarea_subtareas st WHERE st.tarea_id = t.id AND st.completada)::int AS "subtareasHechas",
+         (SELECT max(a.creado_en) FROM gestion.tarea_avances a WHERE a.tarea_id = t.id) AS "ultimoRegistro",
+         coalesce(t.creado_por = $1::uuid, false) AS "creadaPorMi"
+  ${DESDE_TAREA}
+    LEFT JOIN gestion.solicitudes s ON s.id = t.solicitud_id AND NOT s.eliminado
+    LEFT JOIN gestion.proyectos p ON p.id = coalesce(t.proyecto_id, s.proyecto_id) AND NOT p.eliminado`;
+
+/** Mismo criterio que "Mis proyectos": tiene tareas en el proyecto o está asignado a una de sus solicitudes ($1 = usuario). */
+const CONDICION_MIEMBRO_PROYECTO = `(
+  EXISTS (SELECT 1 FROM gestion.tareas t WHERE t.proyecto_id = p.id AND t.responsable_id = $1 AND NOT t.eliminado)
+  OR EXISTS (SELECT 1 FROM gestion.solicitudes s
+               JOIN gestion.asignaciones a ON a.solicitud_id = s.id AND a.activa AND NOT a.eliminado
+              WHERE s.proyecto_id = p.id AND NOT s.eliminado AND a.usuario_id = $1))`;
 
 /** Lecturas del módulo de evaluación (avance por frente, tareas, criterios e historial de calificaciones). */
 @Injectable()
@@ -66,9 +90,9 @@ export class ConsultasEvaluacion {
     return rows;
   }
 
-  async tarea(id: string): Promise<(TareaVista & { solicitudId: string | null; proyectoId: string | null }) | null> {
+  async tarea(id: string): Promise<(TareaVista & { solicitudId: string | null; proyectoId: string | null; creadoPor: string | null }) | null> {
     const { rows } = await db().query(
-      `SELECT ${COLUMNAS_TAREA}, t.solicitud_id AS "solicitudId", t.proyecto_id AS "proyectoId" ${DESDE_TAREA}
+      `SELECT ${COLUMNAS_TAREA}, t.solicitud_id AS "solicitudId", t.proyecto_id AS "proyectoId", t.creado_por AS "creadoPor" ${DESDE_TAREA}
         WHERE t.id = $1 AND NOT t.eliminado`, [id]);
     return rows[0] ?? null;
   }
@@ -85,20 +109,109 @@ export class ConsultasEvaluacion {
   /** "Registrar avances": tareas de las que la persona es responsable, con su solicitud o proyecto. */
   async misTareas(usuarioId: string): Promise<MiTarea[]> {
     const { rows } = await db().query(
-      `SELECT ${COLUMNAS_TAREA},
-              t.solicitud_id AS "solicitudId", s.codigo AS "solicitudCodigo", s.titulo AS "solicitudTitulo",
-              coalesce(t.proyecto_id, s.proyecto_id) AS "proyectoId", p.codigo AS "proyectoCodigo", p.nombre AS "proyectoNombre",
-              CASE WHEN t.solicitud_id IS NOT NULL THEN s.estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION')
-                   ELSE p.estado NOT IN ('CERRADO','CANCELADO') END AS editable
-        ${DESDE_TAREA}
-         LEFT JOIN gestion.solicitudes s ON s.id = t.solicitud_id AND NOT s.eliminado
-         LEFT JOIN gestion.proyectos p ON p.id = coalesce(t.proyecto_id, s.proyecto_id) AND NOT p.eliminado
+      `${SELECT_MI_TAREA}
         WHERE t.responsable_id = $1 AND NOT t.eliminado
           AND (t.solicitud_id IS NULL OR s.id IS NOT NULL)
           AND (t.estado <> 'COMPLETADA' OR t.actualizado_en > now() - interval '30 days')
         ORDER BY (t.estado = 'COMPLETADA'), t.fecha_fin_plan NULLS LAST, t.creado_en
         LIMIT 300`, [usuarioId]);
     return rows;
+  }
+
+  /** Detalle para el panel lateral: la tarea, su checklist, su bitácora y qué puede hacer quien consulta. */
+  async detalleTarea(tareaId: string, u: UsuarioActual): Promise<DetalleTarea> {
+    const { rows: [tarea] } = await db().query(`${SELECT_MI_TAREA} WHERE t.id = $2 AND NOT t.eliminado`, [u.id, tareaId]);
+    if (!tarea) throw new NoEncontrado('Tarea', tareaId);
+    const gestor = esGestor(u);
+    const propia = tarea.responsableId === u.id;
+    if (!gestor && !propia && !(tarea.solicitudId && (await this.estaEnEquipo(tarea.solicitudId, u.id)))) {
+      throw new SinPermiso('Solo el responsable, su equipo, líderes y directores ven esta tarea');
+    }
+    const [subtareas, bitacora, estado] = await Promise.all([
+      this.subtareas(tareaId),
+      this.bitacora('t.id = $1', [tareaId], 100),
+      tarea.solicitudId
+        ? db().query(`SELECT estado::text AS estado FROM gestion.solicitudes WHERE id = $1`, [tarea.solicitudId])
+        : Promise.resolve({ rows: [] as { estado: EstadoSolicitud }[] }),
+    ]);
+    const puede = tarea.editable && (gestor || propia);
+    return {
+      tarea: tarea as MiTarea,
+      subtareas,
+      bitacora,
+      estadoSolicitud: estado.rows[0]?.estado ?? null,
+      permisos: { registrar: puede, checklist: puede },
+    };
+  }
+
+  async subtareas(tareaId: string): Promise<SubtareaVista[]> {
+    const { rows } = await db().query(
+      `SELECT st.id, st.titulo, st.completada, st.completada_en AS "completadaEn", u.nombre_completo AS "completadaPor", st.orden
+         FROM gestion.tarea_subtareas st LEFT JOIN gestion.usuarios u ON u.id = st.completada_por
+        WHERE st.tarea_id = $1 ORDER BY st.orden, st.creado_en`, [tareaId]);
+    return rows;
+  }
+
+  async subtarea(id: string): Promise<{ id: string; tareaId: string; titulo: string; completada: boolean } | null> {
+    const { rows } = await db().query(
+      `SELECT id, tarea_id AS "tareaId", titulo, completada FROM gestion.tarea_subtareas WHERE id = $1`, [id]);
+    return rows[0] ?? null;
+  }
+
+  private async bitacora(filtro: string, params: unknown[], limite: number): Promise<RegistroAvance[]> {
+    const { rows } = await db().query(
+      `SELECT a.id, a.tarea_id AS "tareaId", t.titulo AS "tareaTitulo", a.usuario_id AS "usuarioId", u.nombre_completo AS usuario,
+              a.tipo, a.avance_anterior::float8 AS "avanceAnterior", a.avance_nuevo::float8 AS "avanceNuevo",
+              a.estado_anterior::text AS "estadoAnterior", a.estado_nuevo::text AS "estadoNuevo", a.horas::float8 AS horas,
+              to_char(a.fecha_trabajo, 'YYYY-MM-DD') AS "fechaTrabajo", a.nota, a.evidencia_url AS "evidenciaUrl", a.creado_en AS "creadoEn"
+         FROM gestion.tarea_avances a
+         JOIN gestion.tareas t ON t.id = a.tarea_id AND NOT t.eliminado
+         JOIN gestion.usuarios u ON u.id = a.usuario_id
+        WHERE ${filtro}
+        ORDER BY a.creado_en DESC
+        LIMIT ${limite}`, params);
+    return rows;
+  }
+
+  /** Actividad reciente y horas de los últimos 14 días de quien consulta. */
+  async miActividad(usuarioId: string): Promise<MiActividad> {
+    const [recientes, horas, hoy] = await Promise.all([
+      this.bitacora('a.usuario_id = $1', [usuarioId], 15),
+      db().query(
+        `SELECT to_char(fecha_trabajo, 'YYYY-MM-DD') AS fecha, sum(horas)::float8 AS horas
+           FROM gestion.tarea_avances
+          WHERE usuario_id = $1 AND fecha_trabajo > current_date - 14
+          GROUP BY fecha_trabajo`, [usuarioId]),
+      db().query(`SELECT to_char(current_date, 'YYYY-MM-DD') AS hoy`),
+    ]);
+    return { recientes, horasPorDia: serieHoras(horas.rows, hoy.rows[0].hoy, 14) };
+  }
+
+  /** Dónde puede crear tareas el ingeniero: solicitudes de su equipo en curso y sus proyectos activos. */
+  async opcionesNuevaTarea(usuarioId: string): Promise<OpcionesNuevaTarea> {
+    const [contextos, grupos] = await Promise.all([
+      db().query(
+        `SELECT 'SOLICITUD' AS tipo, s.id, s.codigo, s.titulo, p.nombre AS proyecto
+           FROM gestion.solicitudes s
+           JOIN gestion.asignaciones a ON a.solicitud_id = s.id AND a.activa AND NOT a.eliminado AND a.usuario_id = $1
+           LEFT JOIN gestion.proyectos p ON p.id = s.proyecto_id
+          WHERE NOT s.eliminado AND s.estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION')
+         UNION ALL
+         SELECT 'PROYECTO', p.id, p.codigo, p.nombre, NULL
+           FROM gestion.proyectos p
+          WHERE NOT p.eliminado AND p.estado NOT IN ('CERRADO','CANCELADO') AND ${CONDICION_MIEMBRO_PROYECTO}
+          ORDER BY 1 DESC, 3`, [usuarioId]),
+      db().query(
+        `SELECT g.id, g.nombre FROM gestion.grupos_trabajo g WHERE g.activo AND NOT g.eliminado
+          ORDER BY (g.id IN (SELECT grupo_id FROM gestion.grupo_miembros WHERE usuario_id = $1)) DESC, g.nombre`, [usuarioId]),
+    ]);
+    return { contextos: contextos.rows, grupos: grupos.rows };
+  }
+
+  async esMiembroProyecto(proyectoId: string, usuarioId: string): Promise<boolean> {
+    const { rowCount } = await db().query(
+      `SELECT 1 FROM gestion.proyectos p WHERE p.id = $2 AND ${CONDICION_MIEMBRO_PROYECTO}`, [usuarioId, proyectoId]);
+    return (rowCount ?? 0) > 0;
   }
 
   async evaluaciones(solicitudId: string): Promise<EvaluacionVista[]> {

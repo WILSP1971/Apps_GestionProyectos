@@ -87,6 +87,13 @@ export interface MiTarea extends TareaVista {
   proyectoNombre: string | null;
   /** false si la solicitud o el proyecto ya no admite cambios (cerrado, cancelado…) */
   editable: boolean;
+  /** Checklist de la tarea (Centro de trabajo) */
+  subtareasTotal: number;
+  subtareasHechas: number;
+  /** Fecha/hora del último registro en la bitácora */
+  ultimoRegistro: string | null;
+  /** La propuso el propio ingeniero */
+  creadaPorMi: boolean;
 }
 
 export interface CriterioCalificacion {

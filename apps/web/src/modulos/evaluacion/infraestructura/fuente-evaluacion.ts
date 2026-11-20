@@ -222,6 +222,7 @@ export const fuenteDemo: FuenteEvaluacion = {
           ...t, solicitudId: s.id, solicitudCodigo: s.codigo, solicitudTitulo: s.titulo,
           proyectoId: s.proyectoId ?? null, proyectoCodigo: s.proyectoCodigo ?? null, proyectoNombre: s.proyectoNombre ?? null,
           editable: ESTADOS_CON_TAREAS.includes(s.estado),
+          subtareasTotal: 0, subtareasHechas: 0, ultimoRegistro: null, creadaPorMi: false,
         });
       }
     }

@@ -8,7 +8,7 @@ export default function PaginaAvances() {
   return (
     <>
       <Encabezado antetitulo="Mi trabajo" titulo="Registrar avances"
-        descripcion="Actualiza el estado, el porcentaje y las horas de tus tareas. El líder y el solicitante ven el avance al instante." />
+        descripcion="Tu centro de trabajo: tareas, checklist, horas y evidencias. El líder y el solicitante ven cada avance al instante." />
       <RegistrarAvances />
     </>
   );

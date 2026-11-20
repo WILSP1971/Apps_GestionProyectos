@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
-  esquemaCambioTarea, esquemaEvaluacion, esquemaNuevaTarea, type CambioTarea, type NuevaEvaluacion, type NuevaTarea,
+  esquemaCambioSubtarea, esquemaCambioTarea, esquemaEvaluacion, esquemaNuevaTarea, esquemaRegistroAvance, esquemaSubtarea,
+  type CambioSubtarea, type CambioTarea, type NuevaEvaluacion, type NuevaSubtarea, type NuevaTarea, type RegistroAvanceNuevo,
 } from '@sierraflow/contratos';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { Roles, Usuario } from '../../../compartido/presentacion/decoradores';
@@ -51,9 +52,66 @@ export class EvaluacionController {
     return this.consultas.misTareas(u.id);
   }
 
-  /** Regla 3: tarea propia de un proyecto. */
+  /** Centro de trabajo: actividad reciente y horas de los últimos 14 días. */
+  @Get('mi-actividad')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  miActividad(@Usuario() u: UsuarioActual) {
+    return this.consultas.miActividad(u.id);
+  }
+
+  /** Solicitudes y proyectos donde quien consulta puede crear tareas, y los frentes disponibles. */
+  @Get('opciones-nueva-tarea')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  opcionesNuevaTarea(@Usuario() u: UsuarioActual) {
+    return this.consultas.opcionesNuevaTarea(u.id);
+  }
+
+  @Get('tareas/:id')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  detalleTarea(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioActual) {
+    return this.consultas.detalleTarea(id, u);
+  }
+
+  /** Registrar avance: % / estado + horas de la sesión + nota + evidencia, en la bitácora de la tarea. */
+  @Post('tareas/:id/avances')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  registrarAvance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(esquemaRegistroAvance)) dto: RegistroAvanceNuevo,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.tareas.registrarAvance(id, dto, u);
+  }
+
+  @Post('tareas/:id/subtareas')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  crearSubtarea(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(esquemaSubtarea)) dto: NuevaSubtarea,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.tareas.crearSubtarea(id, dto, u);
+  }
+
+  @Patch('subtareas/:id')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  actualizarSubtarea(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(esquemaCambioSubtarea)) dto: CambioSubtarea,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.tareas.actualizarSubtarea(id, dto, u);
+  }
+
+  @Delete('subtareas/:id')
+  @Roles('INGENIERO', 'LIDER', 'DIRECTOR')
+  eliminarSubtarea(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioActual) {
+    return this.tareas.eliminarSubtarea(id, u);
+  }
+
+  /** Regla 3: tarea propia de un proyecto (el ingeniero que participa en él también puede proponerla). */
   @Post('proyectos/:id/tareas')
-  @Roles('LIDER', 'DIRECTOR')
+  @Roles('LIDER', 'DIRECTOR', 'INGENIERO')
   crearTareaProyecto(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(esquemaNuevaTarea)) dto: NuevaTarea,
@@ -62,8 +120,9 @@ export class EvaluacionController {
     return this.tareas.crearEnProyecto(id, dto, u);
   }
 
+  /** El ingeniero del equipo puede proponer tareas propias (quedan a su nombre). */
   @Post('solicitudes/:id/tareas')
-  @Roles('LIDER', 'DIRECTOR')
+  @Roles('LIDER', 'DIRECTOR', 'INGENIERO')
   crearTarea(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(esquemaNuevaTarea)) dto: NuevaTarea,
@@ -83,9 +142,10 @@ export class EvaluacionController {
     return this.tareas.actualizar(id, dto, u);
   }
 
+  /** El ingeniero solo puede eliminar las tareas que propuso y que aún no tienen avance. */
   @Delete('tareas/:id')
   @HttpCode(204)
-  @Roles('LIDER', 'DIRECTOR')
+  @Roles('LIDER', 'DIRECTOR', 'INGENIERO')
   async eliminarTarea(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('version', ParseIntPipe) version: number,

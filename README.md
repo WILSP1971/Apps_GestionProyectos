@@ -243,6 +243,24 @@ Guion manual de pruebas sin conexión: [`docs/pruebas/E2E_sin_conexion.md`](docs
 Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluacion/mis-tareas`,
 `POST /api/evaluacion/proyectos/:id/tareas`, `GET /api/proyectos/mios`, `GET /analitica/kpis/mi-desempeno`.
 
+### Centro de trabajo del ingeniero (Registrar avances)
+
+`/avances` reúne en una sola vista: resumen (avance ponderado, pendientes, en progreso, vencidas, bloqueadas,
+horas de 14 días), filtro por solicitud/proyecto, avance por frente, ciclo de la solicitud, tareas por estado,
+cronograma de 4 semanas, actividad reciente e historial de evaluaciones. Cada tarea abre un **panel lateral** con:
+
+- **Checklist de subtareas**: sugiere el % según las subtareas hechas.
+- **Registrar avance**: estado, %, horas de la sesión (se *suman* a las horas reales), fecha del trabajo
+  (hasta 14 días atrás), nota (obligatoria al bloquear) y enlace de evidencia (PR, rama, documento, Figma…).
+- **Bitácora**: cada cambio queda registrado, también los que hace el líder desde Evaluación o el Kanban.
+
+El ingeniero puede **proponer tareas** en solicitudes de su equipo o en proyectos donde participa: quedan a su
+nombre y puede eliminarlas mientras no tengan avance ni horas. Atajos: `N` nueva tarea, `/` buscar, `Esc` cerrar,
+`Ctrl+Enter` guardar avance. Migración 015 (`tarea_subtareas`, `tarea_avances`, `tareas.creado_por`).
+Endpoints: `GET /api/evaluacion/tareas/:id`, `POST /api/evaluacion/tareas/:id/avances`,
+`POST /api/evaluacion/tareas/:id/subtareas`, `PATCH|DELETE /api/evaluacion/subtareas/:id`,
+`GET /api/evaluacion/mi-actividad`, `GET /api/evaluacion/opciones-nueva-tarea`.
+
 ## 8. Pruebas
 
 ```bash
