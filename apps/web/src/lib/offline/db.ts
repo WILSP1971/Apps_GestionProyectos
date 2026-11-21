@@ -34,8 +34,12 @@ export interface SolicitudLocal {
   proyectoId?: string | null;
   proyectoCodigo?: string | null;
   proyectoNombre?: string | null;
+  /** Aplicación de software sobre la que trata */
+  aplicacionId?: string | null;
+  aplicacionNombre?: string | null;
   solicitanteId: string;
   solicitanteNombre: string;
+  /** Fecha sugerida de entrega */
   fechaDeseada?: string;
   tecnologias: string[];
   criterios: CriterioAceptacion[];
@@ -100,6 +104,27 @@ export interface EstadoSync {
   mensaje?: string;
 }
 
+/**
+ * Archivo adjunto guardado en el navegador:
+ *  - PENDIENTE: adjunto de una solicitud que espera conexión (o a que la solicitud llegue al servidor);
+ *  - ERROR: el servidor lo rechazó (se muestra el motivo y se puede quitar);
+ *  - DEMO: adjunto del modo demostración (nunca se sube).
+ */
+export interface AdjuntoLocal {
+  id: string;
+  solicitudId?: string | null;
+  tareaId?: string | null;
+  avanceId?: string | null;
+  nombre: string;
+  mime: string;
+  tamano: number;
+  blob: Blob;
+  estado: 'PENDIENTE' | 'ERROR' | 'DEMO';
+  error?: string;
+  subidoPor: string;
+  creadoEn: string;
+}
+
 class BaseLocal extends Dexie {
   solicitudes!: Table<SolicitudLocal, string>;
   comentarios!: Table<ComentarioLocal, string>;
@@ -107,6 +132,7 @@ class BaseLocal extends Dexie {
   bandejaSalida!: Table<OperacionPendiente, string>;
   conflictos!: Table<ConflictoLocal, string>;
   meta!: Table<{ clave: string; valor: unknown }, string>;
+  adjuntos!: Table<AdjuntoLocal, string>;
 
   constructor() {
     super('sierraflow');
@@ -121,6 +147,10 @@ class BaseLocal extends Dexie {
     this.version(2).stores({
       conflictos: 'idOperacion, entidadId, fecha',
     });
+    // Adjuntos pendientes de subir (y los del modo demo)
+    this.version(3).stores({
+      adjuntos: 'id, estado, solicitudId, tareaId, avanceId',
+    });
   }
 }
 
@@ -129,9 +159,9 @@ export const dbLocal = new BaseLocal();
 /** Borra todos los datos locales (cambio de usuario, salida del modo demo, cierre de sesión). */
 export async function vaciarBaseLocal() {
   await dbLocal.transaction('rw', [dbLocal.solicitudes, dbLocal.comentarios, dbLocal.notificaciones,
-    dbLocal.bandejaSalida, dbLocal.conflictos, dbLocal.meta], async () => {
+    dbLocal.bandejaSalida, dbLocal.conflictos, dbLocal.meta, dbLocal.adjuntos], async () => {
     await Promise.all([dbLocal.solicitudes.clear(), dbLocal.comentarios.clear(), dbLocal.notificaciones.clear(),
-      dbLocal.bandejaSalida.clear(), dbLocal.conflictos.clear(), dbLocal.meta.clear()]);
+      dbLocal.bandejaSalida.clear(), dbLocal.conflictos.clear(), dbLocal.meta.clear(), dbLocal.adjuntos.clear()]);
   });
 }
 

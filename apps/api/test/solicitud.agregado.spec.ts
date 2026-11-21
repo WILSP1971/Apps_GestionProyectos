@@ -9,7 +9,7 @@ const lider: UsuarioActual = { id: 'u2', roles: ['LIDER'], departamentoId: 'd1' 
 const ingeniero: UsuarioActual = { id: 'u3', roles: ['INGENIERO'], departamentoId: 'd1' };
 
 const nueva = (criterios = [{ id: 'c1', orden: 1, descripcion: 'Pago aprobado', cumplido: false }], proyectoId: string | null = 'p1',
-  tipo: 'FUNCIONAL' | 'MEJORA' = 'FUNCIONAL') =>
+  tipo: 'NUEVO' | 'MEJORA' = 'NUEVO') =>
   Solicitud.crear('s1', {
     titulo: 'Integración pagos regionales', descripcion: 'Pasarela COP/USD', tipo,
     prioridad: 'ALTA', solicitanteId: 'u1', departamentoId: 'd1', proyectoId, criterios, tecnologias: [],
@@ -80,7 +80,7 @@ test('solo se edita en borrador', () => {
   assert.throws(() => s.editar({ prioridad: 'BAJA' }, solicitante), /borrador/);
 });
 
-test('regla 1: un requerimiento FUNCIONAL sin proyecto no se asigna; una MEJORA sí', () => {
+test('regla 1: un requerimiento NUEVO sin proyecto no se asigna; una MEJORA sí', () => {
   const aprobar = (x: ReturnType<typeof nueva>) => {
     x.cambiarEstado('ENVIADA', solicitante); x.cambiarEstado('EN_REVISION', lider); x.cambiarEstado('APROBADA', lider);
     return x;

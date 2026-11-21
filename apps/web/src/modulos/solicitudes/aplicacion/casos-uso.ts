@@ -52,6 +52,7 @@ const avisarGestion = (codigo: string, titulo: string, autor: string, id: string
 
 export async function crearSolicitud(
   datos: NuevaSolicitud, actor: Actor, proyecto?: { id: string; codigo?: string | null; nombre?: string | null },
+  aplicacion?: { id: string; nombre: string; tecnologias: string[] },
 ): Promise<string> {
   const v = esquemaNuevaSolicitud.parse(datos);
   const id = v.id ?? nuevoId();
@@ -72,10 +73,13 @@ export async function crearSolicitud(
     proyectoId: v.proyectoId ?? null,
     proyectoCodigo: v.proyectoId ? proyecto?.codigo ?? null : null,
     proyectoNombre: v.proyectoId ? proyecto?.nombre ?? null : null,
+    aplicacionId: v.aplicacionId ?? null,
+    aplicacionNombre: v.aplicacionId ? aplicacion?.nombre ?? null : null,
     solicitanteId: actor.id,
     solicitanteNombre: actor.nombre,
     fechaDeseada: v.fechaDeseada || undefined,
-    tecnologias: v.tecnologias,
+    // Igual que el servidor: sin tecnologías propias, hereda las de la aplicación
+    tecnologias: v.tecnologias.length ? v.tecnologias : aplicacion?.tecnologias ?? [],
     criterios: v.criterios,
     historial: [
       { estadoAnterior: null, estadoNuevo: 'BORRADOR', usuario: actor.nombre, fecha },

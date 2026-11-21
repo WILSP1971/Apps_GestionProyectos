@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, requiereProyecto, transicionesDisponibles, type EstadoSolicitud, type ReglaTransicion } from '@sierraflow/contratos';
 import { dbLocal, type ConflictoLocal } from '@/lib/offline/db';
+import { AdjuntosSolicitud } from '@/modulos/adjuntos/ui/adjuntos-solicitud';
 import { cn, fecha, fechaHora, haceTiempo } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton, Tarjeta, Vacio } from '@/componentes/ui/primitivos';
 import { useActor } from '@/componentes/layout/proveedores';
@@ -123,8 +124,11 @@ export function DetalleSolicitud() {
   const esGestor = actor.roles.some((r) => r === 'LIDER' || r === 'DIRECTOR' || r === 'ADMIN');
   const veAvance = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION', 'CERRADA'].includes(s.estado)
     && (esGestor || s.asignados.some((a) => a.usuarioId === actor.id));
-  // Regla 1: aviso al líder cuando un requerimiento funcional aprobado aún no tiene proyecto
+  // Regla 1: aviso al líder cuando un requerimiento nuevo aprobado aún no tiene proyecto
   const faltaProyecto = esGestor && s.estado === 'APROBADA' && requiereProyecto(s.tipo) && !s.proyectoId;
+  // Adjuntos: solicitante, gestión y equipo asignado, mientras la solicitud siga abierta
+  const puedeAdjuntar = !['CERRADA', 'CANCELADA', 'RECHAZADA'].includes(s.estado) && !s.errorSync
+    && (s.solicitanteId === actor.id || esGestor || s.asignados.some((a) => a.usuarioId === actor.id));
 
   const ejecutar = async (regla: ReglaTransicion, comentario?: string) => {
     try {
@@ -177,7 +181,7 @@ export function DetalleSolicitud() {
 
         {faltaProyecto && (
           <p className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-100">
-            Es un requerimiento <b>funcional</b>: antes de asignar el equipo agrégalo a un proyecto en{' '}
+            Es un requerimiento <b>nuevo</b>: antes de asignar el equipo agrégalo a un proyecto en{' '}
             <Link href="/proyectos" className="font-medium text-primario hover:underline">Proyectos</Link> → Solicitudes → Agregar existentes.
           </p>
         )}
@@ -201,7 +205,8 @@ export function DetalleSolicitud() {
       <LineaDeVida estado={s.estado} />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
-        {/* 3 · Detalles */}
+        {/* 3 · Detalles y adjuntos */}
+        <div className="min-w-0 space-y-5">
         <Tarjeta titulo="Detalles de la solicitud">
           <div className="space-y-4">
             <Dato etiqueta="Descripción"><p className="whitespace-pre-line">{s.descripcion}</p></Dato>
@@ -210,12 +215,17 @@ export function DetalleSolicitud() {
               <Dato etiqueta="Justificación">{s.justificacion}</Dato>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Dato etiqueta="Stack tecnológico">
-                {s.tecnologias.length ? (
-                  <div className="flex flex-wrap gap-1.5">{s.tecnologias.map((t) => <span key={t} className="rounded-md bg-panel-2 px-2 py-0.5 text-xs">{t}</span>)}</div>
+              <Dato etiqueta="Aplicación">
+                {s.aplicacionNombre || s.tecnologias.length ? (
+                  <div className="space-y-1.5">
+                    {s.aplicacionNombre && <p className="font-medium">{s.aplicacionNombre}</p>}
+                    {s.tecnologias.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">{s.tecnologias.map((t) => <span key={t} className="rounded-md bg-panel-2 px-2 py-0.5 text-xs">{t}</span>)}</div>
+                    )}
+                  </div>
                 ) : null}
               </Dato>
-              <Dato etiqueta="Fecha deseada">
+              <Dato etiqueta="Fecha sugerida de entrega">
                 {s.fechaDeseada ? <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-4 text-atenuado" />{fecha(s.fechaDeseada)}</span> : null}
               </Dato>
             </div>
@@ -243,6 +253,8 @@ export function DetalleSolicitud() {
             </div>
           </div>
         </Tarjeta>
+        <AdjuntosSolicitud solicitudId={s.id} puedeAdjuntar={puedeAdjuntar} />
+        </div>
 
         {/* 4 · Gestión y seguimiento */}
         <div className="space-y-5">

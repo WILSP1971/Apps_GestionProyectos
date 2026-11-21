@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ESTADOS_TAREA, type EstadoTarea, type MiTarea } from './evaluacion';
 import type { EstadoSolicitud } from './estados';
+import type { AdjuntoVista } from './adjuntos';
 
 /**
  * Centro de trabajo del ingeniero ("Registrar avances"): checklist de subtareas, bitácora de
@@ -17,7 +18,9 @@ export const esquemaRegistroAvance = z.object({
   fechaTrabajo: fecha.optional(),
   nota: z.string().trim().max(4000).optional(),
   evidenciaUrl: z.string().trim().max(500).regex(/^https?:\/\/\S+$/i, 'El enlace debe empezar por http:// o https://').optional(),
-}).refine((d) => d.avancePct !== undefined || d.estado !== undefined || d.horas > 0 || !!d.nota || !!d.evidenciaUrl, {
+  /** Archivos de evidencia que se subirán después a este registro (POST /adjuntos?tarea=&avance=) */
+  adjuntos: z.number().int().min(0).max(10).optional(),
+}).refine((d) => d.avancePct !== undefined || d.estado !== undefined || d.horas > 0 || !!d.nota || !!d.evidenciaUrl || (d.adjuntos ?? 0) > 0, {
   message: 'Registra al menos un cambio: avance, estado, horas, nota o evidencia',
 });
 export type RegistroAvanceNuevo = z.input<typeof esquemaRegistroAvance>;
@@ -58,6 +61,8 @@ export interface RegistroAvance {
   nota: string | null;
   evidenciaUrl: string | null;
   creadoEn: string;
+  /** Archivos de evidencia (imagen, PDF, código…) */
+  adjuntos: AdjuntoVista[];
 }
 
 export interface DetalleTarea {
@@ -67,6 +72,8 @@ export interface DetalleTarea {
   /** Estado de la solicitud dueña (para el pipeline); null en tareas del proyecto. */
   estadoSolicitud: EstadoSolicitud | null;
   permisos: { registrar: boolean; checklist: boolean };
+  /** Solo en la respuesta de "registrar avance": id del registro creado (para subirle evidencias) */
+  registroId?: string;
 }
 
 export interface MiActividad {

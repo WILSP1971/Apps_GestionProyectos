@@ -8,3 +8,5 @@ export * from './evaluacion';
 export * from './pm';
 export * from './proyectos';
 export * from './avances';
+export * from './aplicaciones';
+export * from './adjuntos';

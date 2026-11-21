@@ -18,7 +18,7 @@ const LOTE_PUSH = 50;
 const LIMITE_PULL = 200;
 const CURSORES_INICIALES: CursoresSync = { solicitudes: 0, comentarios: 0, notificaciones: 0 };
 
-const VERSION_DATOS = 3; // 3: notificaciones con su tipo (aviso de solicitud nueva)
+const VERSION_DATOS = 4; // 4: tipos de requerimiento nuevos y aplicación de la solicitud
 
 export function aSolicitudLocal(s: SolicitudSync, pendiente = false): SolicitudLocal {
   const { eliminado: _e, seq: _s, ...resto } = s;
@@ -62,6 +62,13 @@ async function aplicarPlan(plan: PlanResultados) {
 }
 
 class MotorSync {
+  /** Trabajo extra al final de cada ciclo exitoso (p. ej. subir adjuntos pendientes). Sus errores no detienen la sincronización. */
+  private posteriores: (() => Promise<void>)[] = [];
+
+  alTerminarCiclo(tarea: () => Promise<void>) {
+    if (!this.posteriores.includes(tarea)) this.posteriores.push(tarea);
+  }
+
   private iniciado = false;
   private enCurso = false;
   private temporizador?: ReturnType<typeof setTimeout>;
@@ -122,6 +129,7 @@ class MotorSync {
     try {
       await this.push();
       await this.pull();
+      for (const tarea of this.posteriores) await tarea().catch((e) => console.warn('Tarea posterior a la sincronización:', e));
       this.fallosSeguidos = 0;
       await guardarEstado({ fase: 'ok', ultimaSync: new Date().toISOString() });
     } catch (e) {

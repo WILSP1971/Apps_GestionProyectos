@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
-import { CheckCircle2, FolderKanban, Loader2, Search, Sparkles, UsersRound, WifiOff } from 'lucide-react';
+import { CheckCircle2, FolderKanban, Loader2, Search, Sparkles, UserPlus, UsersRound, WifiOff, X } from 'lucide-react';
 import {
   ETIQUETA_ROL_SOLICITUD, requiereProyecto, ROLES_EN_SOLICITUD, type EstadoSolicitud, type GrupoTrabajo, type IngenieroCarga, type RolEnSolicitud,
 } from '@sierraflow/contratos';
@@ -16,6 +16,7 @@ import { useActor, useUsuario } from '@/componentes/layout/proveedores';
 import { InsigniaEstado, InsigniaPrioridad } from '@/modulos/solicitudes/ui/insignias';
 import { ordenarRecomendados, type NivelCarga } from '../dominio/recomendacion';
 import { fuenteApi, fuenteDemo } from '../infraestructura/fuente-asignacion';
+import { DialogoAgregarIngenieros } from './dialogo-agregar-ingenieros';
 
 const POR_ASIGNAR: EstadoSolicitud[] = ['APROBADA'];
 const EN_CURSO: EstadoSolicitud[] = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION'];
@@ -46,6 +47,7 @@ export function PanelAsignacion() {
   const [comentario, setComentario] = useState('');
   const [filtro, setFiltro] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [agregando, setAgregando] = useState(false);
 
   const solicitudes = useLiveQuery(
     () => dbLocal.solicitudes.where('estado').anyOf([...POR_ASIGNAR, ...EN_CURSO]).toArray(),
@@ -92,33 +94,50 @@ export function PanelAsignacion() {
     setIngSel((s) => {
       const copia = { ...s };
       if (copia[id]) delete copia[id];
-      else copia[id] = { rol: ingenieros?.find((i) => i.usuarioId === id)?.grupos.includes('QA') ? 'QA' : 'DESARROLLADOR', horas: '' };
+      else copia[id] = { rol: rolInicial(id), horas: '' };
       return copia;
     });
 
-  const confirmar = async () => {
+  const rolInicial = (id: string): RolEnSolicitud => (ingenieros?.find((i) => i.usuarioId === id)?.grupos.includes('QA') ? 'QA' : 'DESARROLLADOR');
+
+  /** Guarda el equipo. Desde "Agregar ingenieros" se guarda sin salir de la pantalla. */
+  const confirmar = async (opciones: { equipo?: Record<string, Seleccion>; quedarse?: boolean } = {}) => {
     if (!seleccionada) return;
+    const equipo = opciones.equipo ?? ingSel;
     setGuardando(true);
     try {
       await fuente.asignar(seleccionada.id, {
         version: Math.max(seleccionada.version, 1),
         grupos: gruposSel,
-        ingenieros: Object.entries(ingSel).map(([usuarioId, v]) => ({
+        ingenieros: Object.entries(equipo).map(([usuarioId, v]) => ({
           usuarioId, rol: v.rol, horasEstimadas: v.horas ? Number(v.horas) : null,
         })),
         comentario: comentario.trim() || undefined,
       }, actor.nombre);
+      if (opciones.quedarse) {
+        setIngSel(equipo);
+        toast.success('Ingenieros agregados al equipo: recibirán un aviso');
+        return;
+      }
       toast.success(seleccionada.estado === 'APROBADA' ? 'Equipo asignado: la solicitud pasó a "Asignada"' : 'Equipo actualizado');
       router.push(`/solicitudes/${seleccionada.id}`);
     } catch (e) {
       toast.error((e as Error).message);
+      throw e;
     } finally {
       setGuardando(false);
     }
   };
+  const enCursoSel = !!seleccionada && EN_CURSO.includes(seleccionada.estado);
+  // Sin el filtro de búsqueda de "Por asignar": equipo actual y candidatos, por afinidad y carga
+  const ordenados = ingenieros ? ordenarRecomendados(ingenieros, {
+    tecnologias: seleccionada?.tecnologias ?? [], grupos: grupos.filter((g) => gruposSel.includes(g.id)).map((g) => g.nombre),
+  }) : [];
+  const equipoActual = ordenados.filter((i) => ingSel[i.usuarioId]);
+  const candidatos = ordenados.filter((i) => !ingSel[i.usuarioId]);
 
   const totalSel = gruposSel.length + Object.keys(ingSel).length;
-  // Regla 1: un requerimiento funcional aprobado no se asigna si no está en un proyecto
+  // Regla 1: un requerimiento nuevo aprobado no se asigna si no está en un proyecto
   const faltaProyecto = !!seleccionada && seleccionada.estado === 'APROBADA' && requiereProyecto(seleccionada.tipo) && !seleccionada.proyectoId;
 
   return (
@@ -204,6 +223,47 @@ export function PanelAsignacion() {
               </div>
             </Tarjeta>
 
+            {enCursoSel ? (
+              <Tarjeta titulo={`2. Ingenieros de desarrollo · equipo actual (${equipoActual.length})`} cuerpoClassName="p-0"
+                acciones={<Boton tamano="sm" onClick={() => setAgregando(true)} disabled={!ingenieros}><UserPlus className="size-4" />Agregar ingenieros</Boton>}>
+                {!ingenieros ? <div className="h-32 animate-pulse" /> : equipoActual.length === 0 ? (
+                  <div className="px-5 py-10 text-center text-sm text-atenuado">
+                    <p>Esta solicitud aún no tiene ingenieros asignados.</p>
+                    <button type="button" className="mt-2 font-medium text-primario hover:underline" onClick={() => setAgregando(true)}>Agregar ingenieros</button>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-borde/50">
+                    {equipoActual.map((i) => {
+                      const sel = ingSel[i.usuarioId]!;
+                      return (
+                        <li key={i.usuarioId} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                          <Avatar nombre={i.nombre} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{i.nombre}</p>
+                            <p className="truncate text-xs text-atenuado">{i.grupos.join(', ') || 'Sin grupo'} · {i.tecnologias.join(' ')}</p>
+                          </div>
+                          <div className="hidden w-32 lg:block" title={`${i.horasPendientes} h pendientes de ${i.capacidadSemana} h/semana`}>
+                            <div className="mb-1 flex justify-between text-[11px] text-atenuado"><span>Carga</span><span className="tabular-nums">{i.cargaPct}%</span></div>
+                            <BarraProgreso valor={i.cargaPct} color={COLOR_CARGA[i.puntuacion.nivel]} />
+                          </div>
+                          <select className="campo h-8 w-auto py-0 text-xs" value={sel.rol} aria-label={`Rol de ${i.nombre}`}
+                            onChange={(e) => setIngSel((s) => ({ ...s, [i.usuarioId]: { ...sel, rol: e.target.value as RolEnSolicitud } }))}>
+                            {ROLES_EN_SOLICITUD.map((r) => <option key={r} value={r}>{ETIQUETA_ROL_SOLICITUD[r]}</option>)}
+                          </select>
+                          <input type="number" min={0} max={2000} placeholder="Horas" aria-label={`Horas estimadas de ${i.nombre}`} className="campo h-8 w-24 py-0 text-xs" value={sel.horas}
+                            onChange={(e) => setIngSel((s) => ({ ...s, [i.usuarioId]: { ...sel, horas: e.target.value } }))} />
+                          <button type="button" onClick={() => alternarIngeniero(i.usuarioId)} aria-label={`Quitar a ${i.nombre} del equipo`}
+                            className="rounded-lg p-1.5 text-atenuado hover:bg-peligro/10 hover:text-red-300"><X className="size-4" /></button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <p className="border-t border-borde/50 px-5 py-2.5 text-[11px] text-atenuado">
+                  Los cambios de rol, horas o retiros se guardan con <b className="text-texto">Actualizar equipo</b>; lo que agregues se guarda al instante.
+                </p>
+              </Tarjeta>
+            ) : (
             <Tarjeta titulo="2. Ingenieros de desarrollo" cuerpoClassName="p-0"
               acciones={
                 <div className="relative">
@@ -260,6 +320,7 @@ export function PanelAsignacion() {
                 </ul>
               )}
             </Tarjeta>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -274,18 +335,26 @@ export function PanelAsignacion() {
               {faltaProyecto && (
                 <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
                   <p className="flex items-center gap-1.5 font-medium"><FolderKanban className="size-4" /> Falta el proyecto</p>
-                  <p className="mt-1">Es un requerimiento <b>funcional</b>: agrégalo a un proyecto antes de asignar el equipo
+                  <p className="mt-1">Es un requerimiento <b>nuevo</b>: agrégalo a un proyecto antes de asignar el equipo
                     (Proyectos → el proyecto → Solicitudes → Agregar existentes).</p>
                   <Link href="/proyectos" className="mt-2 inline-block font-medium text-primario hover:underline">Ir a Proyectos →</Link>
                 </div>
               )}
-              <Boton className="mt-4 w-full" onClick={confirmar} disabled={guardando || totalSel === 0 || faltaProyecto}>
+              <Boton className="mt-4 w-full" onClick={() => void confirmar().catch(() => undefined)} disabled={guardando || totalSel === 0 || faltaProyecto}>
                 {guardando && <Loader2 className="size-4 animate-spin" />}
                 {seleccionada.estado === 'APROBADA' ? 'Confirmar asignación y actualizar estado' : 'Actualizar equipo'}
               </Boton>
             </Tarjeta>
           </div>
         </div>
+      )}
+      {agregando && seleccionada && (
+        <DialogoAgregarIngenieros codigo={seleccionada.codigo} candidatos={candidatos} alCerrar={() => setAgregando(false)}
+          alAgregar={async (ids) => {
+            const equipo = { ...ingSel, ...Object.fromEntries(ids.map((id) => [id, { rol: rolInicial(id), horas: '' }])) };
+            await confirmar({ equipo, quedarse: true });
+            setAgregando(false);
+          }} />
       )}
     </div>
   );

@@ -78,7 +78,11 @@ export class ServicioSincronizacion {
     const version = versiones.resolver(op.entidadId, op.versionBase);
     switch (op.tipo) {
       case 'crear': {
-        const dto = esquemaNuevaSolicitud.parse({ ...(op.payload as object), id: op.entidadId });
+        // Operaciones encoladas sin conexión antes del cambio de tipos (Funcional, Técnica, Cambio)
+        const payload = { ...(op.payload as Record<string, unknown>) };
+        if (payload.tipo === 'FUNCIONAL') payload.tipo = 'NUEVO';
+        else if (payload.tipo === 'TECNICA' || payload.tipo === 'CAMBIO') payload.tipo = 'MEJORA';
+        const dto = esquemaNuevaSolicitud.parse({ ...payload, id: op.entidadId });
         await this.crear.ejecutar(dto, u);
         return;
       }

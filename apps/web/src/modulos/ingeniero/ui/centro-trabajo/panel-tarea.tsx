@@ -12,6 +12,10 @@ import {
 } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton } from '@/componentes/ui/primitivos';
+import { useUsuario } from '@/componentes/layout/proveedores';
+import { fuenteApi as adjuntosApi, fuenteDemo as adjuntosDemo, type FuenteAdjuntos } from '@/modulos/adjuntos/infraestructura/fuente-adjuntos';
+import { ListaAdjuntos } from '@/modulos/adjuntos/ui/lista-adjuntos';
+import { SelectorAdjuntos } from '@/modulos/adjuntos/ui/selector-adjuntos';
 import type { Actor, FuenteAvances } from '../../infraestructura/fuente-avances';
 import {
   colorFrente, ESTILO_ESTADO, fechaCorta, hoyIso, infoEvidencia, PillEstado, PipelineEstados, plazo, relativo,
@@ -29,6 +33,8 @@ export function PanelTarea({ tareaId, fuente, actor, alCerrar, alCambiar }: {
   const [d, setD] = useState<DetalleTarea | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cerrarRef = useRef<HTMLButtonElement>(null);
+  const { modoDemo } = useUsuario();
+  const adjuntos: FuenteAdjuntos = modoDemo ? adjuntosDemo : adjuntosApi;
 
   const cargar = useCallback(async () => {
     try { setD(await fuente.detalle(tareaId, actor)); setError(null); } catch (e) { setError((e as Error).message); }
@@ -80,9 +86,9 @@ export function PanelTarea({ tareaId, fuente, actor, alCerrar, alCambiar }: {
               <InfoGeneral d={d} />
               <Checklist d={d} fuente={fuente} actor={actor} alActualizar={actualizarSubtareas} />
               {d.permisos.registrar
-                ? <Registrar key={d.tarea.version} d={d} fuente={fuente} actor={actor} alRegistrar={(nuevo) => { setD(nuevo); alCambiar(); }} />
+                ? <Registrar key={d.tarea.version} d={d} fuente={fuente} adjuntos={adjuntos} actor={actor} alRegistrar={(nuevo) => { setD(nuevo); alCambiar(); }} />
                 : <p className="flex items-center gap-2 rounded-lg border border-borde bg-panel-2/50 px-4 py-3 text-sm text-atenuado"><Lock className="size-4" />La solicitud o el proyecto ya no admite cambios: la tarea es de solo lectura.</p>}
-              <Bitacora registros={d.bitacora} />
+              <Bitacora registros={d.bitacora} adjuntos={adjuntos} />
             </div>
           )}
         </div>
@@ -215,8 +221,8 @@ function Checklist({ d, fuente, actor, alActualizar }: {
 }
 
 // ------------------------------------------------------------------ registrar avance
-function Registrar({ d, fuente, actor, alRegistrar }: {
-  d: DetalleTarea; fuente: FuenteAvances; actor: Actor; alRegistrar: (d: DetalleTarea) => void;
+function Registrar({ d, fuente, adjuntos, actor, alRegistrar }: {
+  d: DetalleTarea; fuente: FuenteAvances; adjuntos: FuenteAdjuntos; actor: Actor; alRegistrar: (d: DetalleTarea) => void;
 }) {
   const t = d.tarea;
   const [estado, setEstado] = useState<EstadoTarea>(t.estado);
@@ -225,13 +231,14 @@ function Registrar({ d, fuente, actor, alRegistrar }: {
   const [fecha, setFecha] = useState(hoyIso());
   const [nota, setNota] = useState('');
   const [evidencia, setEvidencia] = useState('');
+  const [archivos, setArchivos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
 
   const sugerido = porcentajeSugerido(d.subtareas);
   const h = Math.max(0, Math.min(24, Number(horas.replace(',', '.')) || 0));
   const evidenciaOk = !evidencia.trim() || /^https?:\/\/\S+$/i.test(evidencia.trim());
   const delta = avance - Math.round(t.avancePct);
-  const cambia = estado !== t.estado || delta !== 0 || h > 0 || !!nota.trim() || !!evidencia.trim();
+  const cambia = estado !== t.estado || delta !== 0 || h > 0 || !!nota.trim() || !!evidencia.trim() || archivos.length > 0;
   const faltaMotivo = estado === 'BLOQUEADA' && t.estado !== 'BLOQUEADA' && !nota.trim();
   const ev = useMemo(() => (evidencia.trim() && evidenciaOk ? infoEvidencia(evidencia.trim()) : null), [evidencia, evidenciaOk]);
 
@@ -259,9 +266,19 @@ function Registrar({ d, fuente, actor, alRegistrar }: {
         ...(fecha !== hoyIso() && { fechaTrabajo: fecha }),
         ...(nota.trim() && { nota: nota.trim() }),
         ...(evidencia.trim() && { evidenciaUrl: evidencia.trim() }),
+        ...(archivos.length && { adjuntos: archivos.length }),
       }, actor);
-      toast.success(nuevo.tarea.estado === 'COMPLETADA' && t.estado !== 'COMPLETADA' ? '¡Tarea completada! 🎉' : 'Avance registrado');
-      alRegistrar(nuevo);
+      // Evidencias en archivo: se suben al registro recién creado
+      let fallidos = 0;
+      if (archivos.length && nuevo.registroId) {
+        for (const f of archivos) {
+          try { await adjuntos.subir({ tareaId: t.id, avanceId: nuevo.registroId }, f, actor); } catch (e) { fallidos++; toast.error(`${f.name}: ${(e as Error).message}`); }
+        }
+      }
+      const final = archivos.length ? await fuente.detalle(t.id, actor) : nuevo;
+      toast.success(nuevo.tarea.estado === 'COMPLETADA' && t.estado !== 'COMPLETADA' ? '¡Tarea completada! 🎉'
+        : fallidos ? `Avance registrado (${fallidos} archivo(s) no se pudieron subir)` : 'Avance registrado');
+      alRegistrar(final);
     } catch (e) {
       toast.error((e as Error).message);
       setEnviando(false);
@@ -351,7 +368,7 @@ function Registrar({ d, fuente, actor, alRegistrar }: {
           className={cn('campo mt-1 resize-y text-sm', faltaMotivo && 'border-red-500/60')} />
       </label>
       <label className="mt-3 block">
-        <span className="text-xs text-atenuado">Evidencia (pull request, rama, documento, diseño…)</span>
+        <span className="text-xs text-atenuado">Evidencia: enlace (pull request o rama de GitHub, documento, diseño…)</span>
         <div className="relative mt-1">
           {ev ? <ev.Icono className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-teal-300" />
             : <ExternalLink className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-atenuado" />}
@@ -360,6 +377,10 @@ function Registrar({ d, fuente, actor, alRegistrar }: {
         </div>
         {!evidenciaOk && <span className="mt-1 block text-[11px] text-red-300">El enlace debe empezar por http:// o https://</span>}
       </label>
+      <div className="mt-3">
+        <span className="mb-1 block text-xs text-atenuado">…y/o archivos (capturas, PDF, código)</span>
+        <SelectorAdjuntos archivos={archivos} alCambiar={setArchivos} compacto texto="Adjuntar archivos de evidencia" />
+      </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <span className="hidden text-[11px] text-atenuado sm:block"><kbd className="rounded border border-borde px-1">Ctrl</kbd> + <kbd className="rounded border border-borde px-1">Enter</kbd> para guardar</span>
@@ -375,7 +396,7 @@ function Registrar({ d, fuente, actor, alRegistrar }: {
 }
 
 // ------------------------------------------------------------------ bitácora
-function Bitacora({ registros }: { registros: RegistroAvance[] }) {
+function Bitacora({ registros, adjuntos }: { registros: RegistroAvance[]; adjuntos: FuenteAdjuntos }) {
   return (
     <section aria-label="Bitácora">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="size-4 text-atenuado" />Bitácora y evidencias</h3>
@@ -383,14 +404,16 @@ function Bitacora({ registros }: { registros: RegistroAvance[] }) {
         <p className="rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-atenuado">Aún no hay registros. El primero que guardes aparecerá aquí.</p>
       ) : (
         <ol className="relative space-y-4 border-l border-borde/70 pl-5">
-          {registros.map((r) => <EntradaBitacora key={r.id} r={r} />)}
+          {registros.map((r) => <EntradaBitacora key={r.id} r={r} adjuntos={adjuntos} />)}
         </ol>
       )}
     </section>
   );
 }
 
-export function EntradaBitacora({ r, conTarea, alAbrir }: { r: RegistroAvance; conTarea?: boolean; alAbrir?: () => void }) {
+export function EntradaBitacora({ r, conTarea, alAbrir, adjuntos }: {
+  r: RegistroAvance; conTarea?: boolean; alAbrir?: () => void; adjuntos?: FuenteAdjuntos;
+}) {
   const ev = r.evidenciaUrl ? infoEvidencia(r.evidenciaUrl) : null;
   const punto = r.tipo === 'SUBTAREA' ? 'bg-emerald-400' : r.tipo === 'CREACION' ? 'bg-amber-400' : r.estadoNuevo ? ESTILO_ESTADO[r.estadoNuevo].punto : 'bg-primario';
   return (
@@ -430,6 +453,7 @@ export function EntradaBitacora({ r, conTarea, alAbrir }: { r: RegistroAvance; c
           <ev.Icono className="size-3.5 shrink-0" /><span className="truncate">{ev.etiqueta}</span><ExternalLink className="size-3 shrink-0 text-atenuado" />
         </a>
       )}
+      {adjuntos && r.adjuntos?.length > 0 && <div className="mt-1.5"><ListaAdjuntos adjuntos={r.adjuntos} fuente={adjuntos} compacta /></div>}
     </li>
   );
 }

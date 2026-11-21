@@ -378,7 +378,7 @@ function PanelSolicitudes({ p, catalogos, fuente, alCambiar }: { p: DetalleProye
       )}>
       <p className="flex items-start gap-2 border-b border-borde/60 px-5 py-2.5 text-xs text-atenuado">
         <Info className="mt-0.5 size-3.5 shrink-0" />
-        Los requerimientos <b className="font-medium text-texto">funcionales</b> deben estar en un proyecto para poder asignarles equipo,
+        Los requerimientos <b className="font-medium text-texto">nuevos</b> deben estar en un proyecto para poder asignarles equipo,
         y no se pueden quitar mientras estén en ejecución. Mejoras, incidentes, cambios y tareas técnicas pueden trabajarse sueltos.
       </p>
       {agregando && (

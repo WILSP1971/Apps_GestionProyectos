@@ -55,6 +55,9 @@ export interface SolicitudSync {
   proyectoId?: string | null;
   proyectoCodigo?: string | null;
   proyectoNombre?: string | null;
+  /** Aplicación de software sobre la que trata */
+  aplicacionId?: string | null;
+  aplicacionNombre?: string | null;
   solicitanteId: string;
   solicitanteNombre: string;
   fechaDeseada?: string;

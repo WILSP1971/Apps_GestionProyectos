@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AdjuntosModule } from './modulos/adjuntos/adjuntos.module';
 import { AdministracionModule } from './modulos/administracion/administracion.module';
 import { AsignacionModule } from './modulos/asignacion/asignacion.module';
 import { EvaluacionModule } from './modulos/evaluacion/evaluacion.module';
@@ -14,7 +15,7 @@ import { SolicitudesModule } from './modulos/solicitudes/solicitudes.module';
  * evaluacion y proyectos (Sprints 6 y 7).
  */
 @Module({
-  imports: [IdentidadModule, SolicitudesModule, SincronizacionModule, NotificacionesModule, AsignacionModule, AdministracionModule, EvaluacionModule, ProyectosModule],
+  imports: [IdentidadModule, SolicitudesModule, SincronizacionModule, NotificacionesModule, AsignacionModule, AdministracionModule, EvaluacionModule, ProyectosModule, AdjuntosModule],
   controllers: [SaludController],
 })
 export class AppModule {}

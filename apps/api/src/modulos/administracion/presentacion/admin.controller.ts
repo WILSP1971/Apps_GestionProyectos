@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { esquemaCambioUsuario, esquemaNuevoUsuario, type CambioUsuario, type NuevoUsuario } from '@sierraflow/contratos';
+import {
+  esquemaAplicacion, esquemaCambioUsuario, esquemaNuevoUsuario, type CambioUsuario, type NuevaAplicacion, type NuevoUsuario,
+} from '@sierraflow/contratos';
 import { ErrorDominio, NoEncontrado } from '../../../compartido/dominio/errores';
 import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { Roles, Usuario } from '../../../compartido/presentacion/decoradores';
@@ -8,13 +10,30 @@ import { enTransaccion } from '../../../compartido/infraestructura/base-datos';
 import { JwtGuard } from '../../identidad/presentacion/jwt.guard';
 import { RolesGuard } from '../../identidad/presentacion/roles.guard';
 import { RepositorioAdmin } from '../infraestructura/repositorio-admin';
+import { RepositorioAplicaciones } from '../infraestructura/repositorio-aplicaciones';
 
 /** Administración de usuarios: roles, departamento, grupos de trabajo, tecnologías y capacidad. */
 @Controller('admin')
 @UseGuards(JwtGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly repo: RepositorioAdmin) {}
+  constructor(private readonly repo: RepositorioAdmin, private readonly aplicaciones: RepositorioAplicaciones) {}
+
+  // ---------------------------------------------------------------- catálogo de aplicaciones
+  @Get('aplicaciones')
+  listarAplicaciones() {
+    return this.aplicaciones.listar(false);
+  }
+
+  @Post('aplicaciones')
+  crearAplicacion(@Body(new ZodPipe(esquemaAplicacion)) dto: NuevaAplicacion, @Usuario() u: UsuarioActual) {
+    return enTransaccion(u.id, () => this.aplicaciones.crear(dto));
+  }
+
+  @Patch('aplicaciones/:id')
+  actualizarAplicacion(@Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(esquemaAplicacion)) dto: NuevaAplicacion, @Usuario() u: UsuarioActual) {
+    return enTransaccion(u.id, () => this.aplicaciones.actualizar(id, dto));
+  }
 
   @Get('catalogos')
   catalogos() {

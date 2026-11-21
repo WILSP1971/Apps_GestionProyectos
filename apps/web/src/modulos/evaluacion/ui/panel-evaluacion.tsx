@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronLeft, Loader2, Plus, Trash2, WifiOff } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Eye, Loader2, Plus, Trash2, WifiOff } from 'lucide-react';
 import {
   ESTADOS_CON_TAREAS, ESTADOS_EVALUABLES, ESTADOS_TAREA, ETIQUETA_ESTADO_TAREA, ETIQUETA_ROL_SOLICITUD, ETIQUETA_TIPO_EVALUACION,
   letraCalificacion, notaGlobal, TIPOS_EVALUACION,
@@ -16,6 +16,8 @@ import { useActor, useUsuario } from '@/componentes/layout/proveedores';
 import { InsigniaEstado } from '@/modulos/solicitudes/ui/insignias';
 import { fuenteApi, fuenteDemo, type FuenteEvaluacion } from '../infraestructura/fuente-evaluacion';
 import { InsigniaNota } from './insignia-nota';
+import { PanelTarea } from '@/modulos/ingeniero/ui/centro-trabajo/panel-tarea';
+import { fuenteApi as avancesApi, fuenteDemo as avancesDemo } from '@/modulos/ingeniero/infraestructura/fuente-avances';
 
 const COLOR_ESTADO_TAREA: Record<EstadoTarea, string> = {
   PENDIENTE: 'text-atenuado', EN_PROGRESO: 'text-sky-300', BLOQUEADA: 'text-red-300', COMPLETADA: 'text-emerald-300',
@@ -129,8 +131,12 @@ function Frentes({ ctx }: { ctx: ContextoEvaluacion }) {
 // ---------------------------------------------------------------------
 function Tareas({ ctx, fuente, alCambiar }: { ctx: ContextoEvaluacion; fuente: FuenteEvaluacion; alCambiar: () => Promise<void> }) {
   const actor = useActor();
+  const { modoDemo } = useUsuario();
   const editable = ESTADOS_CON_TAREAS.includes(ctx.solicitud.estado);
   const [nueva, setNueva] = useState(false);
+  // Detalle de la tarea (notas de avance, checklist, evidencias): el mismo panel del ingeniero
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const actorAvances = useMemo(() => ({ id: actor.id, nombre: actor.nombre }), [actor.id, actor.nombre]);
 
   return (
     <Tarjeta titulo={`Tareas (${ctx.tareas.length})`} cuerpoClassName="p-0"
@@ -145,17 +151,21 @@ function Tareas({ ctx, fuente, alCambiar }: { ctx: ContextoEvaluacion; fuente: F
       ) : (
         <ul className="divide-y divide-borde/50">
           {ctx.tareas.map((t) => (
-            <FilaTarea key={`${t.id}:${t.version}`} tarea={t} ctx={ctx} fuente={fuente} alCambiar={alCambiar}
+            <FilaTarea key={`${t.id}:${t.version}`} tarea={t} ctx={ctx} fuente={fuente} alCambiar={alCambiar} alVerDetalle={() => setAbierta(t.id)}
               puedeEditar={editable && (ctx.permisos.gestionarTareas || t.responsableId === actor.id)} />
           ))}
         </ul>
+      )}
+      {abierta && (
+        <PanelTarea tareaId={abierta} fuente={modoDemo ? avancesDemo : avancesApi} actor={actorAvances}
+          alCerrar={() => setAbierta(null)} alCambiar={() => void alCambiar()} />
       )}
     </Tarjeta>
   );
 }
 
-function FilaTarea({ tarea: t, ctx, fuente, alCambiar, puedeEditar }: {
-  tarea: TareaVista; ctx: ContextoEvaluacion; fuente: FuenteEvaluacion; alCambiar: () => Promise<void>; puedeEditar: boolean;
+function FilaTarea({ tarea: t, ctx, fuente, alCambiar, alVerDetalle, puedeEditar }: {
+  tarea: TareaVista; ctx: ContextoEvaluacion; fuente: FuenteEvaluacion; alCambiar: () => Promise<void>; alVerDetalle: () => void; puedeEditar: boolean;
 }) {
   const [avance, setAvance] = useState(String(Math.round(t.avancePct)));
   const [horas, setHoras] = useState(String(t.horasReales));
@@ -232,6 +242,10 @@ function FilaTarea({ tarea: t, ctx, fuente, alCambiar, puedeEditar }: {
         ) : (
           <span className={cn('text-xs', COLOR_ESTADO_TAREA[t.estado])}>{ETIQUETA_ESTADO_TAREA[t.estado]} · {Math.round(t.avancePct)}%</span>
         )}
+        <button type="button" onClick={alVerDetalle} title="Notas de avance, checklist y evidencias"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-borde px-2.5 py-1 text-xs text-atenuado transition hover:border-primario/60 hover:text-teal-100">
+          <Eye className="size-3.5" />Ver detalle
+        </button>
       </div>
       <BarraProgreso valor={t.avancePct} className="mt-2 h-1" color={t.estado === 'BLOQUEADA' ? 'bg-red-500' : t.estado === 'COMPLETADA' ? 'bg-emerald-500' : undefined} />
     </li>

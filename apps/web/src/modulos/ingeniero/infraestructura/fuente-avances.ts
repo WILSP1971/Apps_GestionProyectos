@@ -9,6 +9,7 @@ import { motorSync } from '@/lib/offline/sync/motor-sync';
 import { GRUPOS_DEMO } from '@/modulos/asignacion/infraestructura/fuente-asignacion';
 import { fuenteDemo as evaluacionDemo } from '@/modulos/evaluacion/infraestructura/fuente-evaluacion';
 import { fuenteDemo as proyectosDemo } from '@/modulos/proyectos/infraestructura/fuente-proyectos';
+import { vistaLocal } from '@/modulos/adjuntos/infraestructura/fuente-adjuntos';
 
 export interface Actor { id: string; nombre: string }
 
@@ -81,10 +82,10 @@ function extrasIniciales(t: MiTarea): ExtrasDemo {
     bitacora.push(
       { ...base, id: crypto.randomUUID(), avanceAnterior: mitad, avanceNuevo: t.avancePct, horas: Math.max(1, Math.round(t.horasReales / 2)),
         fechaTrabajo: haceDias(1).slice(0, 10), nota: 'Avance sobre la implementación principal; quedan pendientes los casos borde.',
-        evidenciaUrl: 'https://github.com/sierrainnova/sierraflow/pull/42', creadoEn: haceDias(1, 17) },
+        evidenciaUrl: 'https://github.com/sierrainnova/sierraflow/pull/42', creadoEn: haceDias(1, 17), adjuntos: [] },
       { ...base, id: crypto.randomUUID(), avanceAnterior: 0, avanceNuevo: mitad, horas: Math.max(1, Math.round(t.horasReales / 2)),
         fechaTrabajo: haceDias(4).slice(0, 10), nota: 'Diseño técnico revisado con el líder.', evidenciaUrl: null,
-        estadoAnterior: 'PENDIENTE', estadoNuevo: 'EN_PROGRESO', creadoEn: haceDias(4, 16) },
+        estadoAnterior: 'PENDIENTE', estadoNuevo: 'EN_PROGRESO', creadoEn: haceDias(4, 16), adjuntos: [] },
     );
   }
   return { subtareas, bitacora, creadaPor: null };
@@ -135,8 +136,13 @@ async function detalleDemo(id: string, actor: Actor): Promise<DetalleTarea> {
   const tarea = await tareaDemo(id, actor);
   const e = await extras(tarea);
   const s = tarea.solicitudId ? await dbLocal.solicitudes.get(tarea.solicitudId) : null;
+  // Evidencias en archivo de cada registro (en demo quedan en IndexedDB)
+  const archivos = (await dbLocal.adjuntos.where('tareaId').equals(id).toArray()).filter((a) => a.estado === 'DEMO');
+  const bitacora = e.bitacora.map((r) => ({
+    ...r, adjuntos: archivos.filter((a) => a.avanceId === r.id).sort((a, b) => a.creadoEn.localeCompare(b.creadoEn)).map(vistaLocal),
+  }));
   return {
-    tarea, subtareas: e.subtareas, bitacora: e.bitacora, estadoSolicitud: s?.estado ?? null,
+    tarea, subtareas: e.subtareas, bitacora, estadoSolicitud: s?.estado ?? null,
     permisos: { registrar: tarea.editable, checklist: tarea.editable },
   };
 }
@@ -161,10 +167,10 @@ export const fuenteDemo: FuenteAvances = {
       avanceAnterior: t.avancePct, avanceNuevo: r.avancePct,
       estadoAnterior: r.estado !== t.estado ? t.estado : null, estadoNuevo: r.estado !== t.estado ? (r.estado as EstadoTarea) : null,
       horas: datos.horas, fechaTrabajo: datos.fechaTrabajo ?? hoy(), nota: datos.nota || null, evidenciaUrl: datos.evidenciaUrl || null,
-      creadoEn: ahora(),
+      creadoEn: ahora(), adjuntos: [],
     });
     await guardarExtras(id, e);
-    return detalleDemo(id, actor);
+    return { ...(await detalleDemo(id, actor)), registroId: e.bitacora[0]!.id };
   },
 
   async crearSubtarea(tareaId, titulo, actor) {
@@ -189,7 +195,7 @@ export const fuenteDemo: FuenteAvances = {
         e.bitacora.unshift({
           id: crypto.randomUUID(), tareaId, tareaTitulo: t.titulo, usuarioId: actor.id, usuario: actor.nombre, tipo: 'SUBTAREA',
           avanceAnterior: null, avanceNuevo: null, estadoAnterior: null, estadoNuevo: null, horas: 0, fechaTrabajo: hoy(),
-          nota: `Completó: ${st.titulo}`, evidenciaUrl: null, creadoEn: ahora(),
+          nota: `Completó: ${st.titulo}`, evidenciaUrl: null, creadoEn: ahora(), adjuntos: [],
         });
       }
     }
@@ -207,7 +213,7 @@ export const fuenteDemo: FuenteAvances = {
 
   async miActividad(actor) {
     const todas = (await dbLocal.meta.where('clave').startsWith('avances:').toArray())
-      .flatMap((m) => (m.valor as ExtrasDemo).bitacora);
+      .flatMap((m) => (m.valor as ExtrasDemo).bitacora).map((r) => ({ ...r, adjuntos: r.adjuntos ?? [] }));
     todas.sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
     const propias = todas.filter((r) => r.usuarioId === actor.id);
     const base = propias.length ? propias : todas;
@@ -238,7 +244,7 @@ export const fuenteDemo: FuenteAvances = {
       bitacora: [{
         id: crypto.randomUUID(), tareaId: t.id, tareaTitulo: t.titulo, usuarioId: actor.id, usuario: actor.nombre, tipo: 'CREACION',
         avanceAnterior: null, avanceNuevo: null, estadoAnterior: null, estadoNuevo: null, horas: 0, fechaTrabajo: hoy(),
-        nota: 'Tarea propuesta por el ingeniero', evidenciaUrl: null, creadoEn: ahora(),
+        nota: 'Tarea propuesta por el ingeniero', evidenciaUrl: null, creadoEn: ahora(), adjuntos: [],
       }],
     });
     return t.id;

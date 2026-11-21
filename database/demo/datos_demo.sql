@@ -40,7 +40,7 @@ SELECT '22222222-0000-4000-8000-000000000234'::uuid,
        'Integración API Pagos Regionales (COP/USD)',
        'Implementar pasarela de pagos regionales.',
        'Aceptar pagos en COP y USD para Colombia y Perú.',
-       'FUNCIONAL', 'ALTA', 'ENVIADA', u.id, u.departamento_id, current_date + 30
+       'NUEVO', 'ALTA', 'ENVIADA', u.id, u.departamento_id, current_date + 30
   FROM usuarios u WHERE u.email = 'paula.finanzas@sierrainnova.tech'
 ON CONFLICT (id) DO NOTHING;
 

@@ -22,6 +22,8 @@ export class CrearSolicitudCasoUso {
         if (existente) return { id: existente.id, estado: existente.estado };
       }
       if (dto.proyectoId) await this.validarProyecto(dto.proyectoId, usuario);
+      // La solicitud hereda las tecnologías de la aplicación: con ellas se recomiendan ingenieros
+      const tecnologiasApp = dto.aplicacionId ? await this.validarAplicacion(dto.aplicacionId, dto.tipo) : [];
       const s = Solicitud.crear(dto.id ?? randomUUID(), {
         titulo: dto.titulo,
         descripcion: dto.descripcion,
@@ -32,14 +34,29 @@ export class CrearSolicitudCasoUso {
         solicitanteId: usuario.id,
         departamentoId: usuario.departamentoId!,
         proyectoId: dto.proyectoId ?? null,
+        aplicacionId: dto.aplicacionId ?? null,
         fechaDeseada: dto.fechaDeseada || null,
         criterios: dto.criterios,
-        tecnologias: dto.tecnologias,
+        tecnologias: dto.tecnologias.length ? dto.tecnologias : tecnologiasApp,
       });
       if (dto.enviar) s.cambiarEstado('ENVIADA', usuario);
       await this.repo.guardar(s);
       return { id: s.id, estado: s.estado };
     });
+  }
+
+  /** La aplicación existe, está activa y está asignada al tipo de requerimiento. Devuelve sus tecnologías. */
+  private async validarAplicacion(aplicacionId: string, tipo: NuevaSolicitud['tipo']): Promise<string[]> {
+    const { rows: [a] } = await db().query(
+      `SELECT a.nombre, a.activo,
+              EXISTS (SELECT 1 FROM gestion.aplicacion_tipos xt WHERE xt.aplicacion_id = a.id AND xt.tipo = $2::gestion.tipo_solicitud) AS del_tipo,
+              coalesce((SELECT array_agg(t.nombre ORDER BY t.nombre) FROM gestion.aplicacion_tecnologias x
+                          JOIN gestion.tecnologias t ON t.id = x.tecnologia_id WHERE x.aplicacion_id = a.id), '{}') AS tecnologias
+         FROM gestion.aplicaciones a WHERE a.id = $1`, [aplicacionId, tipo]);
+    if (!a) throw new ErrorDominio('APLICACION_INEXISTENTE', 'La aplicación indicada no existe');
+    if (!a.activo) throw new ErrorDominio('APLICACION_INACTIVA', `La aplicación "${a.nombre}" ya no está disponible`);
+    if (!a.del_tipo) throw new ErrorDominio('APLICACION_OTRO_TIPO', `La aplicación "${a.nombre}" no está asignada a este tipo de requerimiento`);
+    return a.tecnologias;
   }
 
   /** Regla 2: crear la solicitud ya dentro de un proyecto (desde la pantalla del proyecto). */

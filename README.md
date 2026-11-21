@@ -250,6 +250,23 @@ indicando el motivo; cada cambio queda en el *Historial de estados* del proyecto
 Con varios roles manda el de mayor alcance. Endpoints nuevos: `GET /api/evaluacion/mis-tareas`,
 `POST /api/evaluacion/proyectos/:id/tareas`, `GET /api/proyectos/mios`, `GET /analitica/kpis/mi-desempeno`.
 
+### Nueva solicitud: tipos, aplicaciones y adjuntos (migración 019)
+
+- **Tipos de requerimiento:** Nuevo, Normativo, Mejora e Incidente. *Funcional* pasó a *Nuevo* (y sigue exigiendo
+  proyecto para asignarse); *Técnica* y *Cambio* se convirtieron en *Mejora*.
+- **Aplicaciones:** el administrador mantiene el catálogo en *Usuarios y equipos → Aplicaciones*: a qué tipos se
+  asigna cada una y qué tecnologías usa. El asistente muestra un desplegable con las aplicaciones del tipo elegido
+  (obligatorio si hay alguna) y la solicitud hereda sus tecnologías para recomendar ingenieros.
+- **Adjuntos:** imágenes, PDF, documentos de oficina y archivos de código (máx. 10 MB c/u, se validan extensión y
+  firma). En la solicitud se adjuntan desde el asistente o desde el detalle; si no hay conexión esperan en el
+  navegador y se suben al sincronizar. En *Registrar avances* el ingeniero adjunta archivos como evidencia de cada
+  registro, además del enlace de GitHub. El contenido se guarda en PostgreSQL (entra en las copias de seguridad).
+- Paso 2 del asistente sin *Stack tecnológico*; etiquetas *Prioridad sugerida* y *Fecha sugerida de entrega*.
+- Gestión: **Ver detalle** en cada tarea de *Gestión y calificación del avance* (notas, checklist y evidencias) y
+  **Agregar ingenieros** al equipo de una solicitud en curso (pestaña *En curso* de Asignación).
+- Endpoints: `GET /api/catalogos/aplicaciones`, `GET|POST|PATCH /api/admin/aplicaciones`,
+  `GET|POST /api/adjuntos?solicitud=|tarea=&avance=`, `GET /api/adjuntos/:id/contenido`, `DELETE /api/adjuntos/:id`.
+
 ### Roles al iniciar sesión, aviso de solicitud nueva y bandeja
 
 - **Solicitante** es todo correo que no esté registrado como ingeniero, líder, director o administrador. La API lo

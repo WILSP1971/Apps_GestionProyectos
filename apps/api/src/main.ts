@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { FiltroErroresDominio } from './compartido/presentacion/filtro-errores-dominio';
 import { validarEntorno } from './compartido/infraestructura/entorno';
 import { esInterna, LimitadorVentana } from './compartido/infraestructura/limitador';
+import { TAMANO_MAX_ADJUNTO } from '@sierraflow/contratos';
 
 async function iniciar() {
   const { errores, avisos } = validarEntorno(process.env);
@@ -32,6 +33,10 @@ async function iniciar() {
   const general = new LimitadorVentana(Number(process.env.LIMITE_PETICIONES_MIN ?? 1200), 60_000);
   const sensibles = new LimitadorVentana(Number(process.env.LIMITE_AUTH_MIN ?? 30), 60_000);
   const fastify = app.getHttpAdapter().getInstance();
+  // Cuerpos binarios de hasta 10 MB: los usa solo /api/adjuntos (el resto de rutas valida JSON con zod)
+  if (fastify.hasContentTypeParser('application/octet-stream')) fastify.removeContentTypeParser('application/octet-stream');
+  fastify.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: TAMANO_MAX_ADJUNTO + 1024 },
+    (_req, cuerpo, listo) => listo(null, cuerpo));
   fastify.addHook('onRequest', (req, reply, listo) => {
     if (esInterna(req.ip) || req.url.startsWith('/api/salud')) return listo();
     const r = (req.url.startsWith('/api/auth/') ? sensibles : general).permitir(req.ip);

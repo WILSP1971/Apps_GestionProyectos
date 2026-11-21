@@ -1,21 +1,28 @@
 import { z } from 'zod';
 import { ESTADOS } from './estados';
 
-export const TIPOS_SOLICITUD = ['FUNCIONAL', 'TECNICA', 'MEJORA', 'INCIDENTE', 'CAMBIO'] as const;
+export const TIPOS_SOLICITUD = ['NUEVO', 'NORMATIVO', 'MEJORA', 'INCIDENTE'] as const;
 export type TipoSolicitud = (typeof TIPOS_SOLICITUD)[number];
 
 export const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'] as const;
 export type Prioridad = (typeof PRIORIDADES)[number];
 
 export const ETIQUETA_TIPO: Record<TipoSolicitud, string> = {
-  FUNCIONAL: 'Funcional', TECNICA: 'Técnica', MEJORA: 'Mejora', INCIDENTE: 'Incidente', CAMBIO: 'Cambio',
+  NUEVO: 'Nuevo', NORMATIVO: 'Normativo', MEJORA: 'Mejora', INCIDENTE: 'Incidente',
+};
+/** Ayuda que ve el solicitante al elegir el tipo. */
+export const DESCRIPCION_TIPO: Record<TipoSolicitud, string> = {
+  NUEVO: 'Una aplicación o módulo que todavía no existe.',
+  NORMATIVO: 'Un cambio exigido por una ley, norma o ente de control.',
+  MEJORA: 'Un ajuste o una función nueva sobre una aplicación que ya existe.',
+  INCIDENTE: 'Algo que dejó de funcionar o funciona mal.',
 };
 /**
- * Regla 1 (proyectos): los requerimientos funcionales son desarrollos de software que deben
+ * Regla 1 (proyectos): los requerimientos nuevos son desarrollos de software que deben
  * gestionarse dentro de un proyecto. No pueden pasar a ASIGNADA sin proyecto.
- * Ajustes, incidentes, cambios y tareas técnicas pueden trabajarse sueltos.
+ * Normativos, mejoras e incidentes pueden trabajarse sueltos.
  */
-export const TIPOS_REQUIEREN_PROYECTO: readonly TipoSolicitud[] = ['FUNCIONAL'];
+export const TIPOS_REQUIEREN_PROYECTO: readonly TipoSolicitud[] = ['NUEVO'];
 export const requiereProyecto = (tipo: TipoSolicitud) => TIPOS_REQUIEREN_PROYECTO.includes(tipo);
 
 export const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
@@ -40,6 +47,9 @@ export const esquemaNuevaSolicitud = z.object({
   tipo: z.enum(TIPOS_SOLICITUD),
   prioridad: z.enum(PRIORIDADES),
   proyectoId: z.string().uuid().optional(),
+  /** Aplicación de software sobre la que trata (catálogo por tipo de requerimiento) */
+  aplicacionId: z.string().uuid().optional().nullable(),
+  /** Fecha sugerida de entrega */
   fechaDeseada: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional().or(z.literal('')),
   tecnologias: z.array(z.string()).default([]),
   criterios: z.array(esquemaCriterio).min(1, 'Agrega al menos un criterio de aceptación'),

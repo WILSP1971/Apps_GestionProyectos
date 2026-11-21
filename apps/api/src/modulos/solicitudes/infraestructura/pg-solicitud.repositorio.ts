@@ -39,6 +39,7 @@ export class PgSolicitudRepositorio implements RepositorioSolicitudes {
         solicitanteId: r.solicitante_id,
         departamentoId: r.departamento_id,
         proyectoId: r.proyecto_id,
+        aplicacionId: r.aplicacion_id,
         fechaDeseada: r.fecha_deseada_txt,
         criterios: r.criterios,
         tecnologias: r.tecnologias,
@@ -52,10 +53,10 @@ export class PgSolicitudRepositorio implements RepositorioSolicitudes {
     if (s.esNuevo) {
       await db().query(
         `INSERT INTO gestion.solicitudes(id, titulo, descripcion, objetivos, justificacion, tipo, prioridad,
-                                         estado, solicitante_id, departamento_id, proyecto_id, fecha_deseada)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+                                         estado, solicitante_id, departamento_id, proyecto_id, fecha_deseada, aplicacion_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [s.id, d.titulo, d.descripcion, d.objetivos, d.justificacion, d.tipo, d.prioridad,
-         d.estado, d.solicitanteId, d.departamentoId, d.proyectoId ?? null, d.fechaDeseada ?? null],
+         d.estado, d.solicitanteId, d.departamentoId, d.proyectoId ?? null, d.fechaDeseada ?? null, d.aplicacionId ?? null],
       );
     } else {
       // Concurrencia optimista: solo actualiza si nadie más cambió la fila

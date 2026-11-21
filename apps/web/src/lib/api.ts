@@ -74,3 +74,33 @@ export async function apiFetch<T>(
   }
   return r.status === 204 ? (undefined as T) : ((await r.json()) as T);
 }
+
+/**
+ * Petición binaria a la API (adjuntos): sube un Blob como application/octet-stream o descarga uno.
+ * Comparte la renovación del token y el formato de errores de apiFetch.
+ */
+export async function apiBinario(
+  ruta: string,
+  init: { method?: 'GET' | 'POST'; cuerpo?: Blob; cabeceras?: Record<string, string>; signal?: AbortSignal } = {},
+): Promise<Response> {
+  const llamar = (token: string) =>
+    fetch(`${BASE}${ruta}`, {
+      method: init.method ?? 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.cuerpo ? { 'Content-Type': 'application/octet-stream' } : {}),
+        ...init.cabeceras,
+      },
+      body: init.cuerpo,
+      cache: 'no-store',
+      signal: init.signal,
+    });
+  let r = await llamar(await obtenerToken());
+  if (r.status === 401) {
+    r = await llamar(await obtenerToken(true));
+    if (r.status === 401) throw new ErrorSesion();
+  }
+  if (r.status === 413) throw new ErrorApi(413, { mensaje: 'El archivo supera el tamaño máximo permitido (10 MB)' });
+  if (!r.ok) throw new ErrorApi(r.status, await r.json().catch(() => null));
+  return r;
+}

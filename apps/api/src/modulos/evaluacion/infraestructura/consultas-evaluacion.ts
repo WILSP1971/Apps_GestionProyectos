@@ -163,7 +163,12 @@ export class ConsultasEvaluacion {
       `SELECT a.id, a.tarea_id AS "tareaId", t.titulo AS "tareaTitulo", a.usuario_id AS "usuarioId", u.nombre_completo AS usuario,
               a.tipo, a.avance_anterior::float8 AS "avanceAnterior", a.avance_nuevo::float8 AS "avanceNuevo",
               a.estado_anterior::text AS "estadoAnterior", a.estado_nuevo::text AS "estadoNuevo", a.horas::float8 AS horas,
-              to_char(a.fecha_trabajo, 'YYYY-MM-DD') AS "fechaTrabajo", a.nota, a.evidencia_url AS "evidenciaUrl", a.creado_en AS "creadoEn"
+              to_char(a.fecha_trabajo, 'YYYY-MM-DD') AS "fechaTrabajo", a.nota, a.evidencia_url AS "evidenciaUrl", a.creado_en AS "creadoEn",
+              coalesce((SELECT json_agg(json_build_object('id', ad.id, 'nombre', ad.nombre, 'mime', ad.mime, 'tamano', ad.tamano,
+                                                          'subidoPor', us.nombre_completo, 'creadoEn', ad.creado_en, 'avanceId', ad.avance_id)
+                                        ORDER BY ad.creado_en)
+                          FROM gestion.adjuntos ad JOIN gestion.usuarios us ON us.id = ad.subido_por
+                         WHERE ad.avance_id = a.id AND NOT ad.eliminado), '[]') AS adjuntos
          FROM gestion.tarea_avances a
          JOIN gestion.tareas t ON t.id = a.tarea_id AND NOT t.eliminado
          JOIN gestion.usuarios u ON u.id = a.usuario_id

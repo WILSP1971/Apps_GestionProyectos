@@ -73,7 +73,7 @@ export function BandejaSolicitudes() {
       && (!prioridad || s.prioridad === prioridad)
       && (!tipo || s.tipo === tipo)
       && (!departamento || s.departamento === departamento)
-      && (!q || `${s.codigo} ${s.titulo} ${s.solicitanteNombre} ${s.proyectoNombre ?? ''}`.toLowerCase().includes(q)));
+      && (!q || `${s.codigo} ${s.titulo} ${s.solicitanteNombre} ${s.proyectoNombre ?? ''} ${s.aplicacionNombre ?? ''}`.toLowerCase().includes(q)));
     return lista.sort((a, b) => {
       // Las nuevas siempre arriba cuando se ve todo
       if (grupo === 'TODAS' && (a.estado === 'ENVIADA') !== (b.estado === 'ENVIADA')) return a.estado === 'ENVIADA' ? -1 : 1;
@@ -119,7 +119,7 @@ export function BandejaSolicitudes() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-atenuado" />
-          <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar por código, título, solicitante o proyecto"
+          <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar por código, título, solicitante, aplicación o proyecto"
             className="campo h-9 pl-9 text-sm" aria-label="Buscar" />
         </div>
         <select className="campo h-9 w-auto text-sm" value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad | '')} aria-label="Prioridad">
@@ -176,7 +176,8 @@ export function BandejaSolicitudes() {
                       </div>
                       <p className={cn('mt-0.5 line-clamp-1 font-medium', nueva && 'text-teal-50')}>{s.titulo}</p>
                       <p className="truncate text-xs text-atenuado">
-                        {s.departamento}{s.proyectoCodigo && <> · <span className="text-texto/80" title={s.proyectoNombre ?? ''}>{s.proyectoCodigo}</span></>}
+                        {s.departamento}{s.aplicacionNombre && <> · <span className="text-texto/80">{s.aplicacionNombre}</span></>}
+                        {s.proyectoCodigo && <> · <span className="text-texto/80" title={s.proyectoNombre ?? ''}>{s.proyectoCodigo}</span></>}
                         {s.fechaDeseada && <> · deseada {fecha(s.fechaDeseada)}</>}
                       </p>
                     </td>

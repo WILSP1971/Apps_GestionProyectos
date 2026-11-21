@@ -128,6 +128,7 @@ export class GestionarTareasCasoUso {
    */
   async registrarAvance(tareaId: string, entrada: RegistroAvanceNuevo, u: UsuarioActual): Promise<DetalleTarea> {
     const dto: RegistroAvanceValido = esquemaRegistroAvance.parse(entrada);
+    let registroId = '';
     await enTransaccion(u.id, async () => {
       const actual = await this.tareaEditable(tareaId, u);
       if (actual.version !== dto.version) throw new ConflictoConcurrencia('Tarea', tareaId);
@@ -146,7 +147,7 @@ export class GestionarTareasCasoUso {
       if (!rowCount) throw new ConflictoConcurrencia('Tarea', tareaId);
 
       const nueva = (await this.consultas.tarea(tareaId))!;
-      await this.anotar(tareaId, u, {
+      registroId = await this.anotar(tareaId, u, {
         tipo: 'AVANCE', antes: actual, despues: nueva, horas: dto.horas, fechaTrabajo: dto.fechaTrabajo ?? null,
         nota: dto.nota || null, evidenciaUrl: dto.evidenciaUrl || null,
       });
@@ -154,7 +155,7 @@ export class GestionarTareasCasoUso {
         await this.iniciarDesarrollo(actual.solicitudId, u);
       }
     });
-    return this.consultas.detalleTarea(tareaId, u);
+    return { ...(await this.consultas.detalleTarea(tareaId, u)), registroId };
   }
 
   // ---------------------------------------------------------------- checklist
@@ -218,15 +219,17 @@ export class GestionarTareasCasoUso {
   private async anotar(tareaId: string, u: UsuarioActual, r: {
     tipo: 'AVANCE' | 'CREACION' | 'SUBTAREA'; antes?: TareaVista; despues?: TareaVista; horas?: number;
     fechaTrabajo?: string | null; nota?: string | null; evidenciaUrl?: string | null;
-  }) {
+  }): Promise<string> {
     const cambioEstado = r.antes && r.despues && r.antes.estado !== r.despues.estado;
-    await db().query(
+    const { rows: [registro] } = await db().query(
       `INSERT INTO gestion.tarea_avances(tarea_id, usuario_id, tipo, avance_anterior, avance_nuevo, estado_anterior, estado_nuevo,
                                          horas, fecha_trabajo, nota, evidencia_url)
-       VALUES ($1, $2, $3, $4, $5, $6::gestion.estado_tarea, $7::gestion.estado_tarea, $8, coalesce($9::date, current_date), $10, $11)`,
+       VALUES ($1, $2, $3, $4, $5, $6::gestion.estado_tarea, $7::gestion.estado_tarea, $8, coalesce($9::date, current_date), $10, $11)
+       RETURNING id`,
       [tareaId, u.id, r.tipo, r.antes?.avancePct ?? null, r.despues?.avancePct ?? null,
         cambioEstado ? r.antes!.estado : null, cambioEstado ? (r.despues!.estado as EstadoTarea) : null,
         r.horas ?? 0, r.fechaTrabajo ?? null, r.nota ?? null, r.evidenciaUrl ?? null]);
+    return registro.id;
   }
 
   async eliminar(tareaId: string, version: number, u: UsuarioActual): Promise<void> {

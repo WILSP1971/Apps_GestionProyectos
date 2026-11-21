@@ -12,6 +12,7 @@ import { EVENTO_NOTIFICACION, tiempoReal } from '@/lib/tiempo-real';
 import { TIPO_SOLICITUD_NUEVA, type EventoNotificacion } from '@sierraflow/contratos';
 import { perfilDe } from './perfil';
 import { configurarCasosUso } from '@/modulos/solicitudes/aplicacion/casos-uso';
+import { subirAdjuntosPendientes } from '@/modulos/adjuntos/aplicacion/cola-adjuntos';
 import { sembrarDemoSiVacio } from '@/modulos/solicitudes/infraestructura/datos-demo';
 
 interface ContextoUsuario {
@@ -60,6 +61,7 @@ export function Proveedores({ usuario, modoDemo, children }: { usuario: UsuarioS
         }
         await sembrarDemoSiVacio(usuario.id, usuario.nombre);
       } else {
+        motorSync.alTerminarCiclo(subirAdjuntosPendientes); // adjuntos de solicitudes creadas sin conexión
         motorSync.iniciar();
         tiempoReal.iniciar(); // SSE: notificaciones y cambios de otros usuarios al instante
       }

@@ -4,9 +4,9 @@ import { UsuarioActual } from '../../../compartido/dominio/usuario-actual';
 import { buscarRegla, EstadoSolicitud } from './estado-solicitud.vo';
 
 export type Prioridad = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
-export type TipoSolicitud = 'FUNCIONAL' | 'TECNICA' | 'MEJORA' | 'INCIDENTE' | 'CAMBIO';
+export type TipoSolicitud = 'NUEVO' | 'NORMATIVO' | 'MEJORA' | 'INCIDENTE';
 /** Regla 1: mismo valor que TIPOS_REQUIEREN_PROYECTO de @sierraflow/contratos (el dominio no depende de paquetes). */
-const requiereProyecto = (tipo: TipoSolicitud) => tipo === 'FUNCIONAL';
+const requiereProyecto = (tipo: TipoSolicitud) => tipo === 'NUEVO';
 
 export interface CriterioAceptacion {
   id: string;
@@ -27,7 +27,9 @@ export interface PropsSolicitud {
   solicitanteId: string;
   departamentoId: string;
   proyectoId?: string | null;
-  fechaDeseada?: string | null; // AAAA-MM-DD
+  /** Aplicación de software del catálogo (por tipo de requerimiento) */
+  aplicacionId?: string | null;
+  fechaDeseada?: string | null; // AAAA-MM-DD (fecha sugerida de entrega)
   criterios: CriterioAceptacion[];
   tecnologias: string[];
 }
