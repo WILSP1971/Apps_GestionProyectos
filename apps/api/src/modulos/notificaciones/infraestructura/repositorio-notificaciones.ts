@@ -13,6 +13,13 @@ export class RepositorioNotificaciones {
     return s ?? null;
   }
 
+  /** Mismo formato que contextoSolicitud para los eventos de proyecto (sin solicitante). */
+  async contextoProyecto(id: string): Promise<{ codigo: string; titulo: string; solicitanteId: string } | null> {
+    const { rows: [p] } = await db().query(
+      `SELECT codigo, nombre AS titulo, NULL::uuid AS "solicitanteId" FROM gestion.proyectos WHERE id = $1`, [id]);
+    return p ?? null;
+  }
+
   async nombreUsuario(id?: string | null): Promise<string | null> {
     if (!id) return null;
     const { rows: [u] } = await db().query(`SELECT nombre_completo FROM gestion.usuarios WHERE id = $1`, [id]);

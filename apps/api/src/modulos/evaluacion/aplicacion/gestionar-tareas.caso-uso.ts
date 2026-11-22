@@ -72,6 +72,7 @@ export class GestionarTareasCasoUso {
         [proyectoId, dto.titulo, dto.descripcion ?? null, dto.grupoId ?? null, dto.responsableId ?? null,
           dto.peso ?? 1, dto.horasEstimadas ?? null, dto.fechaInicio ?? null, dto.fechaFinPlan ?? null, u.id]);
       await this.anotar(r.id, u, { tipo: 'CREACION', nota: esGestor(u) ? null : 'Tarea propuesta por el ingeniero' });
+      if (dto.responsableId && dto.responsableId !== u.id) await this.avisarResponsableProyecto(proyectoId, dto.responsableId, dto.titulo, u);
       return (await this.consultas.tarea(r.id))!;
     });
   }
@@ -110,8 +111,9 @@ export class GestionarTareasCasoUso {
         if (!rowCount) throw new ConflictoConcurrencia('Tarea', tareaId);
       }
 
-      if (actual.solicitudId && dto.responsableId && dto.responsableId !== actual.responsableId && dto.responsableId !== u.id) {
-        await this.avisarResponsable(actual.solicitudId, dto.responsableId, dto.titulo ?? actual.titulo, u);
+      if (dto.responsableId && dto.responsableId !== actual.responsableId && dto.responsableId !== u.id) {
+        if (actual.solicitudId) await this.avisarResponsable(actual.solicitudId, dto.responsableId, dto.titulo ?? actual.titulo, u);
+        else await this.avisarResponsableProyecto(actual.proyectoId!, dto.responsableId, dto.titulo ?? actual.titulo, u);
       }
       const nueva = (await this.consultas.tarea(tareaId))!;
       if (nueva.avancePct !== actual.avancePct || nueva.estado !== actual.estado) await this.anotarCambio(actual, nueva, u);
@@ -285,6 +287,14 @@ export class GestionarTareasCasoUso {
   private async avisarResponsable(solicitudId: string, responsableId: string, titulo: string, u: UsuarioActual) {
     await publicarEnOutbox([{
       tipo: 'tarea.asignada', agregado: 'Solicitud', agregadoId: solicitudId, ocurridoEn: new Date(),
+      payload: { nuevos: [responsableId], tarea: titulo, actorId: u.id },
+    }]);
+  }
+
+  /** Aviso al ingeniero: "Recibiste una nueva asignación" (tarea propia del proyecto). */
+  private async avisarResponsableProyecto(proyectoId: string, responsableId: string, titulo: string, u: UsuarioActual) {
+    await publicarEnOutbox([{
+      tipo: 'proyecto.tarea_asignada', agregado: 'Proyecto', agregadoId: proyectoId, ocurridoEn: new Date(),
       payload: { nuevos: [responsableId], tarea: titulo, actorId: u.id },
     }]);
   }

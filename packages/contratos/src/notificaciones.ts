@@ -81,3 +81,8 @@ export interface EventoNotificacion {
 
 /** Evento que dispara el aviso "Recibiste una solicitud nueva" en el panel de gestión. */
 export const TIPO_SOLICITUD_NUEVA = 'solicitud.enviada';
+
+/** Eventos que disparan el aviso "Recibiste una nueva asignación" en el panel del ingeniero. */
+export const TIPOS_ASIGNACION_NUEVA: readonly string[] = [
+  'solicitud.asignada', 'solicitud.equipo_actualizado', 'tarea.asignada', 'proyecto.tarea_asignada',
+];

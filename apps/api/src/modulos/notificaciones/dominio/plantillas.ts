@@ -65,14 +65,14 @@ export const PLANTILLAS: Record<string, Regla[]> = {
     },
     {
       quien: 'ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
-      titulo: (c) => `Te asignaron ${c.codigo}`,
-      mensaje: (c) => `Fuiste asignado a "${c.titulo}"${por(c)}.`,
+      titulo: (c) => `Recibiste una nueva asignación: ${c.codigo}`,
+      mensaje: (c) => `Te asignaron la solicitud "${c.titulo}"${por(c)}.`,
     },
   ],
   'solicitud.equipo_actualizado': [{
     quien: 'NUEVOS_ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
-    titulo: (c) => `Te sumaron al equipo de ${c.codigo}`,
-    mensaje: (c) => `Ahora formas parte del equipo de "${c.titulo}"${por(c)}.`,
+    titulo: (c) => `Recibiste una nueva asignación: ${c.codigo}`,
+    mensaje: (c) => `Te sumaron al equipo de la solicitud "${c.titulo}"${por(c)}.`,
   }],
   'solicitud.en_desarrollo': [{
     quien: 'SOLICITANTE', grupo: 'MIS_SOLICITUDES', severidad: 'INFO',
@@ -121,8 +121,14 @@ export const PLANTILLAS: Record<string, Regla[]> = {
   ],
   'tarea.asignada': [{
     quien: 'NUEVOS_ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
-    titulo: (c) => `Nueva tarea en ${c.codigo}`,
-    mensaje: (c) => `${c.actor ?? 'El líder'} te asignó la tarea "${c.extracto ?? ''}" de "${c.titulo}".`,
+    titulo: (c) => `Recibiste una nueva asignación: ${c.codigo}`,
+    mensaje: (c) => `${c.actor ?? 'El líder'} te asignó la tarea "${c.extracto ?? ''}" de la solicitud "${c.titulo}".`,
+  }],
+  // Agregado 'Proyecto': tarea propia del proyecto asignada a un ingeniero
+  'proyecto.tarea_asignada': [{
+    quien: 'NUEVOS_ASIGNADOS', grupo: 'ASIGNACIONES', severidad: 'INFO',
+    titulo: (c) => `Recibiste una nueva asignación: ${c.codigo}`,
+    mensaje: (c) => `${c.actor ?? 'El líder'} te asignó la tarea "${c.extracto ?? ''}" del proyecto "${c.titulo}".`,
   }],
   'sla.en_riesgo': [{
     quien: 'GESTORES', grupo: 'SLA', severidad: 'ALERTA',

@@ -12,6 +12,7 @@ import { dbLocal } from '@/lib/offline/db';
 import { cn } from '@/lib/utils';
 import { useUsuario } from './proveedores';
 import { perfilDe, type Perfil } from './perfil';
+import { esAsignacionNueva } from '@/modulos/notificaciones/ui/avisos-en-linea';
 
 interface Item {
   href: string; etiqueta: string; icono: React.ElementType;
@@ -87,6 +88,11 @@ export function BarraLateral() {
   // Solicitudes recibidas sin revisar: contador junto a la bandeja
   const nuevas = useLiveQuery(
     () => (perfil === 'GESTION' ? dbLocal.solicitudes.where('estado').equals('ENVIADA').count() : Promise.resolve(0)), [perfil]) ?? 0;
+  // Asignaciones sin leer: contador junto a "Mis solicitudes y proyectos" del ingeniero
+  const asignacionesNuevas = useLiveQuery(
+    () => (perfil === 'INGENIERO' ? dbLocal.notificaciones.where('leida').equals(0).filter(esAsignacionNueva).count() : Promise.resolve(0)),
+    [perfil]) ?? 0;
+  const contador = (href: string) => (href === '/solicitudes' ? nuevas : href === '/mis-asignaciones' ? asignacionesNuevas : 0);
   const visible = (it: Item) =>
     (!it.roles || it.roles.some((r) => rolesVista.includes(r)))
     && (!it.ocultarPara || rolesVista.includes('ADMIN') || !it.ocultarPara.some((r) => rolesVista.includes(r)));
@@ -123,8 +129,8 @@ export function BarraLateral() {
                     >
                       <Icono className="size-4" />
                       <span className="flex-1">{etiqueta}</span>
-                      {href === '/solicitudes' && nuevas > 0 && (
-                        <span className="rounded-full bg-primario px-1.5 text-[10px] font-bold tabular-nums text-slate-950" title={`${nuevas} sin revisar`}>{nuevas}</span>
+                      {contador(href) > 0 && (
+                        <span className="rounded-full bg-primario px-1.5 text-[10px] font-bold tabular-nums text-slate-950" title={`${contador(href)} nuevas`}>{contador(href)}</span>
                       )}
                     </Link>
                   </li>

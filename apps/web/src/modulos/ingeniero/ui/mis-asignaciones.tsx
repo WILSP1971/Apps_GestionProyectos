@@ -11,6 +11,8 @@ import { useActor, useUsuario } from '@/componentes/layout/proveedores';
 import { InsigniaEstado, InsigniaPrioridad } from '@/modulos/solicitudes/ui/insignias';
 import { fuenteApi as proyectosApi, fuenteDemo as proyectosDemo } from '@/modulos/proyectos/infraestructura/fuente-proyectos';
 import { fechaCorta, InsigniaSalud } from '@/modulos/proyectos/ui/comunes';
+import { esAsignacionNueva } from '@/modulos/notificaciones/ui/avisos-en-linea';
+import { marcarNotificacionLeida } from '@/modulos/notificaciones/aplicacion/casos-uso';
 
 const ACTIVAS = ['ASIGNADA', 'EN_DESARROLLO', 'EN_VALIDACION'];
 
@@ -27,6 +29,12 @@ export function MisAsignaciones() {
   useEffect(() => {
     (modoDemo ? proyectosDemo : proyectosApi).mios().then(setProyectos).catch(() => setProyectos([]));
   }, [modoDemo]);
+
+  // Al abrir esta pantalla, las asignaciones nuevas quedan vistas (se apaga el contador del menú)
+  useEffect(() => {
+    void dbLocal.notificaciones.where('leida').equals(0).filter(esAsignacionNueva).toArray()
+      .then((ns) => Promise.all(ns.map((n) => marcarNotificacionLeida(n.id))));
+  }, []);
 
   const todas = useLiveQuery(() => dbLocal.solicitudes.toArray(), []) ?? [];
   // En demo los asignados son ingenieros ficticios: se muestran todas las solicitudes con equipo

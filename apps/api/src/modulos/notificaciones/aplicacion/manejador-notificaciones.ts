@@ -32,10 +32,11 @@ export class ManejadorNotificaciones {
 
   async manejar(ev: EventoOutbox): Promise<EnvioExterno[]> {
     const reglas = PLANTILLAS[ev.tipo_evento];
-    if (!reglas?.length || ev.agregado !== 'Solicitud') return [];
+    if (!reglas?.length || (ev.agregado !== 'Solicitud' && ev.agregado !== 'Proyecto')) return [];
+    const esProyecto = ev.agregado === 'Proyecto';
 
     const p = ev.payload ?? {};
-    const solicitud = await this.repo.contextoSolicitud(ev.agregado_id);
+    const solicitud = esProyecto ? await this.repo.contextoProyecto(ev.agregado_id) : await this.repo.contextoSolicitud(ev.agregado_id);
     const actorId = (p.actorId ?? p.autorId ?? null) as string | null;
     const ctx: ContextoEvento = {
       codigo: solicitud?.codigo ?? String(p.codigo ?? ''),
@@ -51,7 +52,8 @@ export class ManejadorNotificaciones {
       tipoEvaluacion: p.tipo === 'AVANCE' || p.tipo === 'CIERRE' ? p.tipo : null,
     };
     const solicitanteId = solicitud?.solicitanteId ?? (p.solicitanteId as string | undefined) ?? null;
-    const enlace = `/solicitudes/${ev.agregado_id}`;
+    // Tareas de proyecto: el ingeniero las trabaja en "Registrar avances"
+    const enlace = esProyecto ? '/avances' : `/solicitudes/${ev.agregado_id}`;
 
     const yaNotificados = new Set<string>(actorId ? [actorId] : []);
     const envios: EnvioExterno[] = [];
@@ -67,7 +69,7 @@ export class ManejadorNotificaciones {
         const mensaje = regla.mensaje(ctx);
         const id = await this.repo.insertar({
           usuarioId, tipoEvento: ev.tipo_evento, titulo, mensaje, enlace, severidad: regla.severidad,
-          datos: { solicitudId: ev.agregado_id, grupo: regla.grupo, eventoId: ev.id },
+          datos: { [esProyecto ? 'proyectoId' : 'solicitudId']: ev.agregado_id, grupo: regla.grupo, eventoId: ev.id },
         });
         const canales = canalesActivos(grupo.porDefecto, await this.repo.preferencias(usuarioId, regla.grupo))
           .filter((c) => c !== 'APP');

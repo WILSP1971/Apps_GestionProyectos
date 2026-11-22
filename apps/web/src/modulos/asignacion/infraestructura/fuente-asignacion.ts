@@ -88,6 +88,12 @@ export const fuenteDemo: FuenteAsignacion = {
         id: crypto.randomUUID(), titulo: `${s.codigo}: equipo asignado`, enlace: `/solicitudes/${id}`,
         mensaje: `${asignados.map((a) => a.nombre).join(', ')} trabajarán en "${s.titulo}".`, severidad: 'EXITO', leida: 0, creadoEn: ahora,
       });
+      // Demo: lo que verá el ingeniero (cambia la vista a "Ingeniero" para ver el aviso modal)
+      await dbLocal.notificaciones.add({
+        id: crypto.randomUUID(), titulo: `Recibiste una nueva asignación: ${s.codigo}`, enlace: `/solicitudes/${id}`,
+        mensaje: `Te asignaron la solicitud "${s.titulo}" por ${actor}.`, severidad: 'INFO', leida: 0, creadoEn: ahora,
+        tipo: 'solicitud.asignada',
+      });
     });
   },
 };

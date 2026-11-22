@@ -46,7 +46,18 @@ test('extracto recorta y normaliza espacios', () => {
 test('quien se suma a un equipo en curso recibe aviso (solo los nuevos)', () => {
   const [r] = PLANTILLAS['solicitud.equipo_actualizado']!;
   assert.equal(r!.quien, 'NUEVOS_ASIGNADOS');
-  assert.match(r!.titulo(ctx), /Te sumaron al equipo de SOL-000234/);
+  assert.match(r!.titulo(ctx), /Recibiste una nueva asignación: SOL-000234/);
+  assert.match(r!.mensaje(ctx), /Te sumaron al equipo/);
+});
+
+test('toda asignación al ingeniero (solicitud, tarea o tarea de proyecto) se anuncia igual', () => {
+  for (const tipo of ['solicitud.asignada', 'solicitud.equipo_actualizado', 'tarea.asignada', 'proyecto.tarea_asignada']) {
+    const regla = PLANTILLAS[tipo]!.find((r) => r.grupo === 'ASIGNACIONES')!;
+    assert.match(regla.titulo(ctx), /^Recibiste una nueva asignación: /, tipo);
+  }
+  const [p] = PLANTILLAS['proyecto.tarea_asignada']!;
+  assert.equal(p!.quien, 'NUEVOS_ASIGNADOS');
+  assert.match(p!.mensaje({ ...ctx, extracto: 'Desplegar en pruebas' }), /tarea "Desplegar en pruebas" del proyecto/);
 });
 
 test('la evaluación avisa al equipo con la nota y al solicitante con el avance', () => {

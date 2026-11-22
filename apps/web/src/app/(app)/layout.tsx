@@ -1,7 +1,7 @@
 import { BarraLateral } from '@/componentes/layout/barra-lateral';
 import { BarraSuperior } from '@/componentes/layout/barra-superior';
 import { Proveedores } from '@/componentes/layout/proveedores';
-import { AvisoSolicitudesNuevas } from '@/modulos/notificaciones/ui/aviso-solicitudes-nuevas';
+import { AvisosEnLinea } from '@/modulos/notificaciones/ui/avisos-en-linea';
 import { MODO_DEMO, obtenerUsuarioSesion } from '@/lib/sesion';
 
 export default async function LayoutAplicacion({ children }: { children: React.ReactNode }) {
@@ -20,8 +20,8 @@ export default async function LayoutAplicacion({ children }: { children: React.R
           <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
-      {/* Panel de gestión: aviso modal "Recibiste una solicitud nueva" */}
-      <AvisoSolicitudesNuevas />
+      {/* Avisos modales: gestión → "Recibiste una solicitud nueva"; ingeniero → "Recibiste una nueva asignación" */}
+      <AvisosEnLinea />
     </Proveedores>
   );
 }
