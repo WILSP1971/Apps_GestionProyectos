@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, X } from 'lucide-react';
 import { esquemaNuevaTarea, type ContextoTrabajo, type OpcionesNuevaTarea } from '@sierraflow/contratos';
 import { Boton } from '@/componentes/ui/primitivos';
+import { Portal } from '@/componentes/ui/portal';
 import type { Actor, FuenteAvances } from '../../infraestructura/fuente-avances';
 
 /**
@@ -58,6 +59,7 @@ export function NuevaTarea({ fuente, actor, contextoInicial, alCrear, alCerrar }
   };
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Nueva tarea">
       <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={alCerrar} className="entrada-fondo absolute inset-0 bg-black/60" />
       <form onSubmit={enviar} className="entrada-subir relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-borde bg-panel p-6 shadow-2xl">
@@ -123,6 +125,7 @@ export function NuevaTarea({ fuente, actor, contextoInicial, alCrear, alCerrar }
         </div>
       </form>
     </div>
+    </Portal>
   );
 }
 

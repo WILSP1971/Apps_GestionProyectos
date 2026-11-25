@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Download, Loader2, Trash2, X } from 'lucide-react';
 import { categoriaAdjunto, tamanoLegible, type AdjuntoVista } from '@sierraflow/contratos';
 import { cn, haceTiempo } from '@/lib/utils';
+import { Portal } from '@/componentes/ui/portal';
 import type { FuenteAdjuntos } from '../infraestructura/fuente-adjuntos';
 import { IconoAdjunto } from './icono-adjunto';
 
@@ -86,6 +87,7 @@ function VisorImagen({ url, nombre, alCerrar }: { url: string; nombre: string; a
     return () => window.removeEventListener('keydown', tecla);
   }, [alCerrar]);
   return (
+    <Portal>
     <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/85 p-6" role="dialog" aria-modal="true" aria-label={nombre} onClick={alCerrar}>
       <div className="mb-3 flex w-full max-w-5xl items-center justify-between text-sm text-white/80">
         <span className="truncate">{nombre}</span>
@@ -97,5 +99,6 @@ function VisorImagen({ url, nombre, alCerrar }: { url: string; nombre: string; a
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={url} alt={nombre} className="max-h-[80vh] max-w-full rounded-lg object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
     </div>
+    </Portal>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton } from '@/componentes/ui/primitivos';
+import { Portal } from '@/componentes/ui/portal';
 import { useUsuario } from '@/componentes/layout/proveedores';
 import { fuenteApi as adjuntosApi, fuenteDemo as adjuntosDemo, type FuenteAdjuntos } from '@/modulos/adjuntos/infraestructura/fuente-adjuntos';
 import { ListaAdjuntos } from '@/modulos/adjuntos/ui/lista-adjuntos';
@@ -53,6 +54,7 @@ export function PanelTarea({ tareaId, fuente, actor, alCerrar, alCambiar }: {
   };
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Detalle de la tarea">
       <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={alCerrar} className="absolute inset-0 bg-black/55 backdrop-blur-[2px] entrada-fondo" />
       <aside className="relative flex h-full w-full max-w-[640px] flex-col border-l border-borde bg-panel shadow-2xl shadow-black/60 entrada-panel">
@@ -104,6 +106,7 @@ export function PanelTarea({ tareaId, fuente, actor, alCerrar, alCambiar }: {
         )}
       </aside>
     </div>
+    </Portal>
   );
 }
 

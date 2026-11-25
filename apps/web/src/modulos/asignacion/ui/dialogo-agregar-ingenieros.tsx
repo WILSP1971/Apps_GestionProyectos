@@ -6,6 +6,7 @@ import { Loader2, Search, Sparkles, UserPlus, X } from 'lucide-react';
 import type { IngenieroCarga } from '@sierraflow/contratos';
 import { cn } from '@/lib/utils';
 import { Avatar, BarraProgreso, Boton } from '@/componentes/ui/primitivos';
+import { Portal } from '@/componentes/ui/portal';
 import { useUsuario } from '@/componentes/layout/proveedores';
 import type { NivelCarga, Puntuacion } from '../dominio/recomendacion';
 
@@ -41,6 +42,7 @@ export function DialogoAgregarIngenieros({ candidatos, codigo, alAgregar, alCerr
   const alternar = (id: string) => setElegidos((e) => (e.includes(id) ? e.filter((x) => x !== id) : [...e, id]));
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Agregar ingenieros">
       <button type="button" tabIndex={-1} aria-label="Cerrar" onClick={alCerrar} className="entrada-fondo absolute inset-0 bg-black/60" />
       <div className="entrada-subir relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-borde bg-panel shadow-2xl">
@@ -116,5 +118,6 @@ export function DialogoAgregarIngenieros({ candidatos, codigo, alAgregar, alCerr
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
