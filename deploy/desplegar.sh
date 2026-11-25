@@ -98,7 +98,9 @@ ok "Compilación lista · web publicada en .releases/web/$REL_ID"
 
 paso "5/7 Servicio de analítica (Python)"
 como_app "cd services/analitica && { [[ -x .venv/bin/python ]] || python3 -m venv .venv; } && .venv/bin/pip install -q --upgrade pip && .venv/bin/pip install -q -r requirements.txt"
-if systemctl list-unit-files | grep -q '^sierraflow-analitica.service'; then
+# Sin tubería: con pipefail, 'systemctl … | grep -q' puede fallar aunque el servicio exista
+if systemctl cat sierraflow-analitica.service >/dev/null 2>&1; then
+  systemctl enable sierraflow-analitica >/dev/null 2>&1 || true
   systemctl restart sierraflow-analitica
   ok "sierraflow-analitica reiniciado"
 else
