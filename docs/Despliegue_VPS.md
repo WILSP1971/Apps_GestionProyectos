@@ -11,7 +11,7 @@ está en la carpeta `deploy/` del repositorio, así que puedes revisarlo antes.
 | Base de datos | PostgreSQL existente · base `sierraflow` | 127.0.0.1:5432 |
 | Publicación | Nginx + Let's Encrypt | 80 / 443 |
 | Configuración y secretos | `/opt/sierraflow/.env` (fuera del repositorio) | — |
-| Código | `/opt/sierraflow/app` | — |
+| Código | `~/proyectos/Apps_GestionProyectos` (dueño: usuario `swarm`) | — |
 | Adjuntos | `/var/sierraflow/adjuntos` | — |
 | Copias de seguridad | `/var/backups/sierraflow` (diarias, 14 días) | — |
 
@@ -70,51 +70,43 @@ nslookup proyectos.sierrainnova.tech
 
 ## Paso 3 · Descargar el código en el servidor
 
-Conéctate por SSH y clona el repositorio en `/opt/sierraflow/app`.
+Conéctate por SSH con tu usuario (`swarm`) y clona el repositorio en tu carpeta de proyectos,
+**sin `sudo`**, para que la carpeta quede a tu nombre.
 
 **Si el repositorio es privado** (recomendado), crea un token de solo lectura en GitHub:
 *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token*,
 con acceso solo a `Apps_GestionProyectos` y permiso **Contents: Read-only**.
 
 ```bash
-sudo mkdir -p /opt/sierraflow
-sudo git clone https://<TOKEN>@github.com/WILSP1971/Apps_GestionProyectos.git /opt/sierraflow/app
+mkdir -p ~/proyectos && cd ~/proyectos
+git clone https://<TOKEN>@github.com/WILSP1971/Apps_GestionProyectos.git
 ```
 
 **Si el repositorio es público:**
 
 ```bash
-sudo mkdir -p /opt/sierraflow
-sudo git clone https://github.com/WILSP1971/Apps_GestionProyectos.git /opt/sierraflow/app
-```
-
-**Si tu servidor organiza las apps en la carpeta de un usuario** (por ejemplo `/home/swarm/proyectos`),
-clona ahí, sin `sudo`, con ese usuario:
-
-```bash
-cd ~/proyectos
+mkdir -p ~/proyectos && cd ~/proyectos
 git clone https://github.com/WILSP1971/Apps_GestionProyectos.git
 ```
 
-El instalador detecta solo la carpeta y su dueño (`swarm`) y ejecuta la app con ese usuario.
-La configuración y las claves quedan igual fuera del repositorio, en `/opt/sierraflow/.env`.
+El código queda en `~/proyectos/Apps_GestionProyectos` (ruta completa: `/home/swarm/proyectos/Apps_GestionProyectos`).
+El instalador detecta la carpeta y su dueño (`swarm`) y ejecuta la app con ese usuario.
+La configuración y las claves quedan fuera del repositorio, en `/opt/sierraflow/.env`.
 
 ## Paso 4 · Ejecutar el instalador
 
 ```bash
-sudo bash /opt/sierraflow/app/deploy/instalar-servidor.sh
-# o, si clonaste en tu carpeta de proyectos:
 sudo bash ~/proyectos/Apps_GestionProyectos/deploy/instalar-servidor.sh
 ```
 
 Para usar otro subdominio o correo:
-`sudo DOMINIO=app.sierrainnova.tech CORREO_ADMIN=tu@correo.com bash /opt/sierraflow/app/deploy/instalar-servidor.sh`
+`sudo DOMINIO=app.sierrainnova.tech CORREO_ADMIN=tu@correo.com bash ~/proyectos/Apps_GestionProyectos/deploy/instalar-servidor.sh`
 
 Tarda entre 5 y 15 minutos (la compilación de Next.js es lo más lento). Recorre 11 pasos:
 
 1. Paquetes: nginx, certbot, python3-venv, git, ufw
 2. Node, pnpm y PM2
-3. Usuario de sistema `sierraflow`, carpetas y swap si hace falta
+3. Toma como usuario de la app al dueño de la carpeta (`swarm`); crea carpetas y swap si hace falta
 4. **Genera `/opt/sierraflow/.env`** con claves aleatorias (BD, `AUTH_SECRET`, par RS256 de los JWT)
 5. PostgreSQL: rol `sierraflow_owner`, base `sierraflow`, migraciones y roles de la aplicación
 6. Servicio `sierraflow-analitica` en systemd
@@ -137,7 +129,7 @@ Abre **https://proyectos.sierrainnova.tech**. La primera instalación queda en *
 de sesión real) para que verifiques que todo responde. En el servidor:
 
 ```bash
-sudo -u sierraflow pm2 status                       # sierraflow-web y sierraflow-api en "online"
+pm2 status                                           # sierraflow-web y sierraflow-api en "online"
 systemctl status sierraflow-analitica --no-pager     # active (running)
 curl -s https://proyectos.sierrainnova.tech/api/salud   # {"estado":"ok","baseDatos":"ok",...}
 ```
@@ -185,7 +177,7 @@ AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<ID_INQUILINO>/
 Aplica los cambios (recompila, porque `NEXT_PUBLIC_MODO_DEMO` se fija al compilar):
 
 ```bash
-sudo bash /opt/sierraflow/app/deploy/desplegar.sh --sin-git
+sudo bash ~/proyectos/Apps_GestionProyectos/deploy/desplegar.sh --sin-git
 ```
 
 Entra con tu correo: el primer acceso crea tu usuario y, si está en `ADMIN_EMAILS`, te da rol de
@@ -243,8 +235,11 @@ sudo bash ~/proyectos/Apps_GestionProyectos/deploy/desplegar.sh --sin-git
 En tu PC: `git push`. En el servidor:
 
 ```bash
-sudo bash /opt/sierraflow/app/deploy/desplegar.sh
+cd ~/proyectos/Apps_GestionProyectos
+sudo bash deploy/desplegar.sh
 ```
+
+Si ya hiciste `git pull` a mano, usa `sudo bash deploy/desplegar.sh --sin-git`.
 
 Descarga lo último, instala dependencias, aplica migraciones nuevas, recompila, reinicia sin cortar el
 servicio (`pm2 reload`) y verifica que todo responda.
@@ -253,17 +248,19 @@ servicio (`pm2 reload`) y verifica que todo responda.
 
 ## Operación diaria
 
+Los comandos `pm2` se ejecutan con tu usuario `swarm`, sin `sudo`.
+
 | Tarea | Comando |
 |---|---|
-| Estado de procesos | `sudo -u sierraflow pm2 status` |
-| Registros web / API | `sudo -u sierraflow pm2 logs sierraflow-web` · `... pm2 logs sierraflow-api` |
+| Estado de procesos | `pm2 status` |
+| Registros web / API | `pm2 logs sierraflow-web` · `... pm2 logs sierraflow-api` |
 | Registros analítica | `journalctl -u sierraflow-analitica -f` |
 | Registros Nginx | `sudo tail -f /var/log/nginx/error.log` |
-| Reiniciar todo | `sudo -u sierraflow pm2 restart all && sudo systemctl restart sierraflow-analitica` |
-| Copia manual | `sudo bash /opt/sierraflow/app/deploy/backup.sh` |
+| Reiniciar todo | `pm2 restart all && sudo systemctl restart sierraflow-analitica` |
+| Copia manual | `sudo bash ~/proyectos/Apps_GestionProyectos/deploy/backup.sh` |
 | Restaurar la BD | `sudo -u postgres pg_restore -d sierraflow --clean --if-exists /var/backups/sierraflow/bd_AAAAMMDD_HHMM.dump` |
 | Renovación HTTPS | automática (`systemctl list-timers \| grep certbot`); prueba: `sudo certbot renew --dry-run` |
-| Volver a una versión | `cd /opt/sierraflow/app && sudo -u sierraflow git checkout <commit>` y `sudo bash deploy/desplegar.sh --sin-git` |
+| Volver a una versión | `cd ~/proyectos/Apps_GestionProyectos && git checkout <commit>` y `sudo bash deploy/desplegar.sh --sin-git` |
 
 Copia periódicamente `/var/backups/sierraflow` **fuera del VPS** (otro servidor, S3, Google Drive con
 `rclone`). Ahí también queda una copia del `.env`: protégela, contiene las claves.
@@ -274,7 +271,7 @@ Copia periódicamente `/var/backups/sierraflow` **fuera del VPS** (otro servidor
 |---|---|---|
 | `git clone` pide usuario y clave | Repositorio privado | Usa el token del paso 3 |
 | La compilación se detiene con "JavaScript heap out of memory" | Poca RAM | Verifica el swap: `swapon --show`; vuelve a ejecutar `desplegar.sh --sin-git` |
-| `502 Bad Gateway` | Un proceso no arrancó | `sudo -u sierraflow pm2 logs --lines 50` |
+| `502 Bad Gateway` | Un proceso no arrancó | `pm2 logs --lines 50` |
 | Certbot: "DNS problem" | El subdominio aún no apunta al VPS | Revisa el registro A y espera la propagación |
 | Al iniciar sesión: "redirect_uri_mismatch" | URI de Google mal escrita | Debe ser exactamente `https://proyectos.sierrainnova.tech/api/auth/callback/google` |
 | Al iniciar sesión: "Dominio de correo no autorizado" | `DOMINIO_PERMITIDO` | Deja vacío o pon el dominio correcto en el `.env` |
@@ -284,9 +281,9 @@ Copia periódicamente `/var/backups/sierraflow` **fuera del VPS** (otro servidor
 
 - PostgreSQL, la API, la web y la analítica solo escuchan en `127.0.0.1`; solo Nginx está expuesto.
 - La aplicación usa el rol `sierraflow_app` sin permisos de DDL; la auditoría no se puede borrar.
-- `/opt/sierraflow/.env` es `640 root:sierraflow`; las claves se generan aleatoriamente en el servidor.
+- `/opt/sierraflow/.env` es `640 root:swarm`; las claves se generan aleatoriamente en el servidor.
 - HTTPS obligatorio con redirección; cabeceras `X-Frame-Options`, `nosniff` y `Referrer-Policy`.
-- Los procesos corren con el usuario sin privilegios `sierraflow`.
+- Los procesos corren con el usuario `swarm`, sin privilegios de root.
 
 ## ¿Publicar en el dominio raíz `sierrainnova.tech`?
 

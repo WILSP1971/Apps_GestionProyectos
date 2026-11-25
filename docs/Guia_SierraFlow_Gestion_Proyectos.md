@@ -2668,7 +2668,7 @@ CREATE SCHEMA gestion AUTHORIZATION sierraflow_owner;
 SQL
 # (si la locale es_CO no existe: sudo locale-gen es_CO.UTF-8, o usa C.UTF-8)
 
-cd /opt/sierraflow/app
+cd /home/swarm/proyectos/Apps_GestionProyectos
 DATABASE_URL="postgres://sierraflow_owner:CLAVE_OWNER_SEGURA@127.0.0.1:5432/sierraflow" ./database/migrar.sh
 sudo -u postgres psql -d sierraflow -f database/seguridad/roles_seguridad.sql
 ```
@@ -2735,7 +2735,7 @@ cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/
 cd services/analitica && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd -
 ```
 
-`/opt/sierraflow/app/ecosystem.config.cjs`:
+`/home/swarm/proyectos/Apps_GestionProyectos/ecosystem.config.cjs`:
 
 ```js
 module.exports = {
@@ -2765,11 +2765,11 @@ Description=SierraFlow Analitica (FastAPI)
 After=network.target postgresql.service
 
 [Service]
-User=sierraflow
-WorkingDirectory=/opt/sierraflow/app/services/analitica
+User=swarm
+WorkingDirectory=/home/swarm/proyectos/Apps_GestionProyectos/services/analitica
 EnvironmentFile=/opt/sierraflow/.env
 Environment=JWT_CLAVE_PUBLICA_FILE=/opt/sierraflow/jwt_publica.pem
-ExecStart=/opt/sierraflow/app/services/analitica/.venv/bin/gunicorn app.main:app \
+ExecStart=/home/swarm/proyectos/Apps_GestionProyectos/services/analitica/.venv/bin/gunicorn app.main:app \
   -k uvicorn.workers.UvicornWorker -w 1 -b 127.0.0.1:8000 --timeout 60
 Restart=always
 RestartSec=5
@@ -2890,10 +2890,12 @@ Restaurar: `pg_restore -d sierraflow --clean --if-exists archivo.dump`. Copia lo
 
 ### 13.8 Script de despliegue — `/opt/sierraflow/deploy.sh`
 
+> En producción se usa `deploy/desplegar.sh` del repositorio: `cd ~/proyectos/Apps_GestionProyectos && sudo bash deploy/desplegar.sh` (ver `docs/Despliegue_VPS.md`). Este esquema queda como referencia.
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-cd /opt/sierraflow/app
+cd /home/swarm/proyectos/Apps_GestionProyectos
 git fetch --all && git reset --hard origin/main
 pnpm install --frozen-lockfile
 DATABASE_URL="$(grep ^DATABASE_URL_OWNER= /opt/sierraflow/.env | cut -d= -f2-)" ./database/migrar.sh

@@ -322,7 +322,8 @@ cd services/analitica && pytest -q
 Guía paso a paso: [`docs/Despliegue_VPS.md`](docs/Despliegue_VPS.md). Resumen:
 
 ```bash
-sudo git clone https://<TOKEN>@github.com/WILSP1971/Apps_GestionProyectos.git /opt/sierraflow/app
-sudo bash /opt/sierraflow/app/deploy/instalar-servidor.sh   # primera vez
-sudo bash /opt/sierraflow/app/deploy/desplegar.sh           # cada actualización
+cd ~/proyectos && git clone https://<TOKEN>@github.com/WILSP1971/Apps_GestionProyectos.git
+cd ~/proyectos/Apps_GestionProyectos
+sudo bash deploy/instalar-servidor.sh   # primera vez
+sudo bash deploy/desplegar.sh           # cada actualización
 ```
