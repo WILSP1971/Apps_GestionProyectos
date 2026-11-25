@@ -114,9 +114,16 @@ export function ListaProyectos() {
 
       {nuevo && (
         <FormularioProyecto catalogos={catalogos} alCerrar={() => setNuevo(false)}
-          alGuardar={async (datos) => {
+          alGuardar={async (datos, { solicitudes }) => {
             try {
               const p = await fuente.crear(datos);
+              if (solicitudes.length) {
+                try {
+                  await fuente.vincular(p.id, solicitudes, []);
+                } catch (e) {
+                  toast.warning(`Proyecto ${p.codigo} creado, pero no se pudo agregar la solicitud: ${(e as Error).message}`);
+                }
+              }
               toast.success(`Proyecto ${p.codigo} creado`);
               router.push(`/proyectos/${p.id}`);
             } catch (e) {
