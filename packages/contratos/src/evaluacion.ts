@@ -75,6 +75,9 @@ export interface TareaVista {
   fechaInicio: string | null;
   fechaFinPlan: string | null;
   version: number;
+  /** En "Gestión y calificación": tarea general del proyecto de la solicitud (cuenta en su avance). */
+  deProyecto?: boolean;
+  proyectoCodigo?: string | null;
 }
 
 /** Tarea en la pantalla "Registrar avances" del ingeniero (de una solicitud o propia de un proyecto). */

@@ -207,7 +207,14 @@ function FilaTarea({ tarea: t, ctx, fuente, alCambiar, alVerDetalle, puedeEditar
     <li className="px-5 py-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1 basis-60">
-          <p className="text-sm font-medium">{t.titulo}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            {t.titulo}
+            {t.deProyecto && (
+              <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-normal text-violet-200" title="Tarea general del proyecto: cuenta en el avance de esta solicitud">
+                Proyecto {t.proyectoCodigo ?? ''}
+              </span>
+            )}
+          </p>
           <p className="text-xs text-atenuado">
             {t.grupo ?? 'Sin frente'} · {t.responsable ?? 'Sin responsable'} · peso {t.peso}
             {t.horasEstimadas != null && ` · ${t.horasEstimadas} h estimadas`}

@@ -56,7 +56,7 @@ export class ConsultasEvaluacion {
               ue.calificacion_global::float8 AS "ultimaNota", ue.calificacion_letra AS "ultimaLetra", ue.fecha AS "ultimaFecha"
          FROM gestion.solicitudes s
          JOIN gestion.departamentos d ON d.id = s.departamento_id
-         LEFT JOIN gestion.tareas t ON t.solicitud_id = s.id
+         LEFT JOIN gestion.tareas t ON t.solicitud_id = s.id OR (s.proyecto_id IS NOT NULL AND t.proyecto_id = s.proyecto_id)
          LEFT JOIN gestion.v_ultima_evaluacion ue ON ue.solicitud_id = s.id
         WHERE NOT s.eliminado
           AND (s.estado IN ('ASIGNADA','EN_DESARROLLO','EN_VALIDACION')
@@ -82,11 +82,15 @@ export class ConsultasEvaluacion {
     return rows;
   }
 
+  /** Tareas de la solicitud y, si pertenece a un proyecto, las tareas generales de ese proyecto. */
   async tareas(solicitudId: string): Promise<TareaVista[]> {
     const { rows } = await db().query(
-      `SELECT ${COLUMNAS_TAREA} ${DESDE_TAREA}
-        WHERE t.solicitud_id = $1 AND NOT t.eliminado
-        ORDER BY g.nombre NULLS LAST, t.creado_en`, [solicitudId]);
+      `SELECT ${COLUMNAS_TAREA}, (t.proyecto_id IS NOT NULL) AS "deProyecto", p.codigo AS "proyectoCodigo" ${DESDE_TAREA}
+         JOIN gestion.solicitudes s ON s.id = $1
+         LEFT JOIN gestion.proyectos p ON p.id = t.proyecto_id
+        WHERE NOT t.eliminado
+          AND (t.solicitud_id = s.id OR (s.proyecto_id IS NOT NULL AND t.proyecto_id = s.proyecto_id))
+        ORDER BY (t.proyecto_id IS NOT NULL), g.nombre NULLS LAST, t.creado_en`, [solicitudId]);
     return rows;
   }
 
