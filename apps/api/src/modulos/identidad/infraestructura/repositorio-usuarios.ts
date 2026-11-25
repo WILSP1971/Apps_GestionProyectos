@@ -42,7 +42,8 @@ export class RepositorioUsuarios {
       [ext.email, ext.nombre, ext.avatar ?? null, ext.proveedor, ext.sub, process.env.DEPARTAMENTO_POR_DEFECTO ?? 'TI'],
     );
 
-    if (u.es_nuevo && correosAdmin().includes(ext.email)) {
+    // Los correos de ADMIN_EMAILS tienen siempre los roles de gestión, también si entraron antes de agregarlos
+    if (correosAdmin().includes(ext.email.toLowerCase())) {
       await db().query(
         `INSERT INTO gestion.usuario_roles(usuario_id, rol_id)
          SELECT $1, id FROM gestion.roles WHERE codigo = ANY($2::text[]) ON CONFLICT DO NOTHING`,
