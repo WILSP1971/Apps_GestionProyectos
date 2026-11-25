@@ -49,7 +49,10 @@ ok "nginx, certbot, python3-venv, git, ufw, openssl"
 command -v psql >/dev/null || error "PostgreSQL no está instalado (sudo apt install postgresql postgresql-contrib)"
 PG_MAYOR=$(sudo -u postgres psql -tAc "SHOW server_version_num" | cut -c1-2)
 (( PG_MAYOR >= 13 )) || error "Se requiere PostgreSQL 13 o superior (instalado: $PG_MAYOR)"
-ok "PostgreSQL $PG_MAYOR"
+# Puerto del PostgreSQL del sistema (el mismo al que entra "sudo -u postgres psql"). Puede no ser 5432:
+# si otro PostgreSQL (por ejemplo, un contenedor Docker) ya ocupa el 5432, el del sistema queda en 5433.
+PG_PUERTO="${PG_PUERTO:-$(sudo -u postgres psql -tAc "SHOW port" | tr -d '[:space:]')}"
+ok "PostgreSQL $PG_MAYOR (puerto $PG_PUERTO)"
 
 # ---------------------------------------------------------------------
 paso "2/11 Node.js, pnpm y PM2"
@@ -103,9 +106,9 @@ NODE_ENV=production
 WEB_URL=https://${DOMINIO}
 
 # --- PostgreSQL ---
-DATABASE_URL_OWNER=postgres://sierraflow_owner:${CLAVE_OWNER}@127.0.0.1:5432/${BD}
-DATABASE_URL=postgres://sierraflow_app:${CLAVE_APP}@127.0.0.1:5432/${BD}
-DATABASE_URL_ANALITICA=postgres://sierraflow_analitica:${CLAVE_ANALITICA}@127.0.0.1:5432/${BD}
+DATABASE_URL_OWNER=postgres://sierraflow_owner:${CLAVE_OWNER}@127.0.0.1:${PG_PUERTO}/${BD}
+DATABASE_URL=postgres://sierraflow_app:${CLAVE_APP}@127.0.0.1:${PG_PUERTO}/${BD}
+DATABASE_URL_ANALITICA=postgres://sierraflow_analitica:${CLAVE_ANALITICA}@127.0.0.1:${PG_PUERTO}/${BD}
 
 # --- Web (Next.js / Auth.js) ---
 # true = modo demo (sin inicio de sesión real). Cambie a false cuando configure Google o Microsoft.
@@ -141,6 +144,13 @@ ANALITICA_URL_INTERNA=http://127.0.0.1:${PUERTO_PY}
 EOF
   ok "Generado $ENV_FILE con claves aleatorias (BD, AUTH_SECRET, JWT RS256)"
 fi
+# Las URLs de la base deben apuntar al PostgreSQL del sistema (corrige un .env antiguo o copiado)
+if grep -qE "^DATABASE_URL[A-Z_]*=.*@127\.0\.0\.1:[0-9]+/" "$ENV_FILE" && \
+   grep -E "^DATABASE_URL[A-Z_]*=" "$ENV_FILE" | grep -vq "@127\.0\.0\.1:${PG_PUERTO}/"; then
+  sed -i -E "/^DATABASE_URL[A-Z_]*=/ s#@127\.0\.0\.1:[0-9]+/#@127.0.0.1:${PG_PUERTO}/#" "$ENV_FILE"
+  ok "URLs de la base ajustadas al puerto ${PG_PUERTO} en $ENV_FILE"
+fi
+sed -i 's/\r$//' "$ENV_FILE"   # por si se copió desde Windows
 chown root:"$USUARIO" "$ENV_FILE" && chmod 640 "$ENV_FILE"
 ln -sfn "$ENV_FILE" "$APP/.env"
 # Los puertos que realmente usa la instalación son los del .env
@@ -339,7 +349,7 @@ else
   aviso "UFW está inactivo. Si desea activarlo (verifique antes el puerto de SSH):"
   aviso "  sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable"
 fi
-ss -ltn | grep -E ":(${PUERTO_WEB}|${PUERTO_API}|${PUERTO_PY}|5432)\b" | grep -vq '127.0.0.1\|\[::1\]' \
+ss -ltn | grep -E ":(${PUERTO_WEB}|${PUERTO_API}|${PUERTO_PY}|${PG_PUERTO})\b" | grep -vq '127.0.0.1\|\[::1\]' \
   && aviso "Algún puerto interno escucha en todas las interfaces; revise con: ss -ltnp" || ok "Puertos internos solo en 127.0.0.1"
 
 # Endurecimiento (Nginx, permisos, fail2ban, verificación semanal de copias)
