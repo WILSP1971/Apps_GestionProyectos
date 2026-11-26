@@ -228,8 +228,13 @@ function Registrar({ d, fuente, adjuntos, actor, alRegistrar }: {
   d: DetalleTarea; fuente: FuenteAvances; adjuntos: FuenteAdjuntos; actor: Actor; alRegistrar: (d: DetalleTarea) => void;
 }) {
   const t = d.tarea;
-  const [estado, setEstado] = useState<EstadoTarea>(t.estado);
-  const [avance, setAvance] = useState(Math.round(t.avancePct));
+  const sugerido = porcentajeSugerido(d.subtareas);
+  // Si el checklist ya va por delante del avance guardado, el formulario arranca con ese porcentaje
+  const desdeChecklist = t.estado !== 'COMPLETADA' && sugerido != null && sugerido > Math.round(t.avancePct);
+  const [estado, setEstado] = useState<EstadoTarea>(
+    desdeChecklist ? (sugerido === 100 ? 'COMPLETADA' : t.estado === 'PENDIENTE' && sugerido! > 0 ? 'EN_PROGRESO' : t.estado) : t.estado);
+  const [avance, setAvance] = useState(desdeChecklist ? sugerido! : Math.round(t.avancePct));
+  const [autoChecklist, setAutoChecklist] = useState(desdeChecklist);
   const [horas, setHoras] = useState('');
   const [fecha, setFecha] = useState(hoyIso());
   const [nota, setNota] = useState('');
@@ -237,7 +242,6 @@ function Registrar({ d, fuente, adjuntos, actor, alRegistrar }: {
   const [archivos, setArchivos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
 
-  const sugerido = porcentajeSugerido(d.subtareas);
   const h = Math.max(0, Math.min(24, Number(horas.replace(',', '.')) || 0));
   const evidenciaOk = !evidencia.trim() || /^https?:\/\/\S+$/i.test(evidencia.trim());
   const delta = avance - Math.round(t.avancePct);
@@ -250,12 +254,23 @@ function Registrar({ d, fuente, adjuntos, actor, alRegistrar }: {
     if (e === 'COMPLETADA') setAvance(100);
     else if (avance === 100) setAvance(t.estado === 'COMPLETADA' ? 90 : 95);
   };
-  const moverAvance = (v: number) => {
+  const moverAvance = (v: number, porChecklist = false) => {
     setAvance(v);
+    setAutoChecklist(porChecklist);
     if (v === 100) setEstado('COMPLETADA');
     else if (estado === 'COMPLETADA') setEstado('EN_PROGRESO');
     else if (v > 0 && estado === 'PENDIENTE') setEstado('EN_PROGRESO');
   };
+
+  // Al marcar o desmarcar subtareas, el porcentaje se calcula y se coloca solo
+  const claveChecklist = `${d.subtareas.filter((s) => s.completada).length}/${d.subtareas.length}`;
+  const claveAnterior = useRef(claveChecklist);
+  useEffect(() => {
+    if (claveAnterior.current === claveChecklist) return;
+    claveAnterior.current = claveChecklist;
+    if (sugerido != null) moverAvance(sugerido, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveChecklist]);
 
   const enviar = async () => {
     if (!cambia || enviando || !evidenciaOk || faltaMotivo) return;
@@ -324,12 +339,17 @@ function Registrar({ d, fuente, adjuntos, actor, alRegistrar }: {
               className={cn('rounded-md border px-2 py-0.5 text-[11px] tabular-nums', avance === v ? 'border-primario text-teal-200' : 'border-borde text-atenuado hover:text-texto')}>{v}%</button>
           ))}
           {sugerido != null && sugerido !== avance && (
-            <button type="button" onClick={() => moverAvance(sugerido)}
+            <button type="button" onClick={() => moverAvance(sugerido, true)}
               className="ml-auto inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-200 ring-1 ring-inset ring-emerald-400/25 hover:bg-emerald-500/20">
               <Check className="size-3" />Usar {sugerido}% del checklist
             </button>
           )}
         </div>
+        {autoChecklist && sugerido === avance && avance !== Math.round(t.avancePct) && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-200" role="status">
+            <Check className="size-3" />Calculado del checklist ({claveChecklist} subtareas). Pulsa «Registrar avance» para guardarlo.
+          </p>
+        )}
       </div>
 
       {/* Horas y fecha */}
